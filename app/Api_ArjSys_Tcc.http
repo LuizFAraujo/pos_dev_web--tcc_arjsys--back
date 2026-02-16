@@ -1,0 +1,6 @@
+@Api_ArjSys_Tcc_HostAddress = http://localhost:5196
+
+GET {{Api_ArjSys_Tcc_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
