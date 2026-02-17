@@ -1,13 +1,8 @@
-# TCC Back - Sistema ARJSYS
+# ArjSys API - Backend do Sistema de Gerenciamento de Projetos Mecânicos
 
-Projeto backend (API) desenvolvido como Trabalho de Conclusão de Curso em Pós-graduação em Desenvolvimento Web.
+API desenvolvida como TCC de Pós-graduação em Desenvolvimento Web.
 
-## Estrutura do Projeto
-
-- **app/** - API Web principal (ASP.NET Core 10)
-- **docs/** - Documentação do projeto
-
-## Tecnologias Principais
+## Tecnologias
 
 - .NET 10 (LTS)
 - C# 14
@@ -16,5 +11,12 @@ Projeto backend (API) desenvolvido como Trabalho de Conclusão de Curso em Pós-
 - SQLite
 
 ## Instalação
+```bash
+cd app
+dotnet run
+```
 
-Consulte a documentação em `docs/` para instruções detalhadas de instalação e configuração.
+## Estrutura
+
+- **app/** - API Web principal
+- **docs/** - Documentação técnica
