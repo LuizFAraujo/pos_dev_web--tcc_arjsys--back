@@ -1,31 +1,25 @@
-﻿using Api_ArjSys_Tcc.Data;
+﻿using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.Models.Engenharia;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Api_ArjSys_Tcc.Services.Engenharia;
 
 namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
 [ApiController]
 [Route("api/engenharia/[controller]")]
-public class ProdutosController : ControllerBase
+public class ProdutosController(ProdutoService service) : ControllerBase
 {
-    private readonly AppDbContext _context;
-
-    public ProdutosController(AppDbContext context)
-    {
-        _context = context;
-    }
+    private readonly ProdutoService _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Produto>>> GetAll()
+    public async Task<ActionResult<List<Produto>>> GetAll()
     {
-        return await _context.Produtos.ToListAsync();
+        return await _service.GetAll();
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Produto>> GetById(int id)
     {
-        var produto = await _context.Produtos.FindAsync(id);
+        var produto = await _service.GetById(id);
 
         if (produto == null)
             return NotFound();
@@ -36,11 +30,8 @@ public class ProdutosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Produto>> Create(Produto produto)
     {
-        produto.CriadoEm = DateTime.UtcNow;
-        _context.Produtos.Add(produto);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = produto.Id }, produto);
+        var criado = await _service.Create(produto);
+        return CreatedAtAction(nameof(GetById), new { id = criado.Id }, criado);
     }
 
     [HttpPut("{id}")]
@@ -49,21 +40,10 @@ public class ProdutosController : ControllerBase
         if (id != produto.Id)
             return BadRequest();
 
-        var existente = await _context.Produtos.FindAsync(id);
+        var atualizado = await _service.Update(id, produto);
 
-        if (existente == null)
+        if (!atualizado)
             return NotFound();
-
-        existente.Codigo = produto.Codigo;
-        existente.Descricao = produto.Descricao;
-        existente.DescricaoCompleta = produto.DescricaoCompleta;
-        existente.Unidade = produto.Unidade;
-        existente.Tipo = produto.Tipo;
-        existente.Peso = produto.Peso;
-        existente.Ativo = produto.Ativo;
-        existente.ModificadoEm = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
 
         return NoContent();
     }
@@ -71,13 +51,10 @@ public class ProdutosController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var produto = await _context.Produtos.FindAsync(id);
+        var removido = await _service.Delete(id);
 
-        if (produto == null)
+        if (!removido)
             return NotFound();
-
-        _context.Produtos.Remove(produto);
-        await _context.SaveChangesAsync();
 
         return NoContent();
     }

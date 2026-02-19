@@ -1,9 +1,16 @@
 //https://localhost:7001/swagger
 //https://localhost:7001/scalar/v1
 
-using Microsoft.EntityFrameworkCore;
-using Api_ArjSys_Tcc.Data;
 using Api_ArjSys_Tcc.Configurations;
+using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Services.Engenharia;
+using Microsoft.EntityFrameworkCore;
+
+
+
+
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +42,14 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// Services — registro dos serviços de negócio (injeção de dependência)
+builder.Services.AddScoped<ProdutoService>();
+
+
+
+
+
 
 var app = builder.Build();
 
