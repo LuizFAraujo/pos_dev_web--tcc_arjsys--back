@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Api_ArjSys_Tcc.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260217021039_CriarTabelaProdutos")]
+    [Migration("20260217030417_CriarTabelaProdutos")]
     partial class CriarTabelaProdutos
     {
         /// <inheritdoc />
@@ -34,9 +34,6 @@ namespace Api_ArjSys_Tcc.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("CodigoBarras")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("TEXT");
 
@@ -55,9 +52,6 @@ namespace Api_ArjSys_Tcc.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ModificadoPor")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Observacao")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal?>("Peso")

@@ -31,9 +31,6 @@ namespace Api_ArjSys_Tcc.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("CodigoBarras")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("TEXT");
 
@@ -52,9 +49,6 @@ namespace Api_ArjSys_Tcc.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ModificadoPor")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Observacao")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal?>("Peso")

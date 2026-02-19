@@ -1,18 +1,31 @@
-using Api_ArjSys_Tcc.Data;
+//https://localhost:7001/swagger
+//https://localhost:7001/scalar/v1
+
 using Microsoft.EntityFrameworkCore;
+using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Configurations;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// ===== Serviços =====
+
+// Controllers — habilita o uso de controllers na API
+// JsonStringEnumConverter — permite enviar/receber enums como texto ("PC", "KG") em vez de números (0, 1)
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
+// OpenAPI — gera o documento JSON que descreve todos os endpoints da API
 builder.Services.AddOpenApi();
 
-// Entity Framework + SQLite
+// Entity Framework + SQLite — ORM para acesso ao banco de dados
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CORS - liberar acesso do frontend (Vite porta 5173)
+// CORS — permite o frontend (React/Vite) fazer requisições para esta API
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -25,15 +38,31 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ===== Pipeline de Middleware =====
+
+// OpenAPI — expõe o documento JSON em /openapi/v1.json (apenas em Development)
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
+// Swagger UI — visualizador interativo da API em /swagger
+app.UseSwaggerConfig();
+
+// Scalar — visualizador moderno da API em /scalar/v1
+app.UseScalarConfig();
+
+// HTTPS — redireciona requisições HTTP para HTTPS
 app.UseHttpsRedirection();
+
+// CORS — aplica a política de acesso do frontend
 app.UseCors("AllowFrontend");
+
+// Authorization — habilita autenticação/autorização (preparado para JWT futuro)
 app.UseAuthorization();
+
+// Controllers — mapeia as rotas dos controllers
 app.MapControllers();
 
+// Inicia a aplicação
 app.Run();

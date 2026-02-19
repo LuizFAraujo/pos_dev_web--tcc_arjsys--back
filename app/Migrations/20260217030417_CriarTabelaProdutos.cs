@@ -23,8 +23,6 @@ namespace Api_ArjSys_Tcc.Migrations
                     Unidade = table.Column<string>(type: "TEXT", maxLength: 2, nullable: false),
                     Tipo = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
                     Peso = table.Column<decimal>(type: "TEXT", nullable: true),
-                    CodigoBarras = table.Column<string>(type: "TEXT", nullable: true),
-                    Observacao = table.Column<string>(type: "TEXT", nullable: true),
                     Ativo = table.Column<bool>(type: "INTEGER", nullable: false),
                     CriadoEm = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ModificadoEm = table.Column<DateTime>(type: "TEXT", nullable: true),

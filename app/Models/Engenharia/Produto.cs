@@ -10,7 +10,5 @@ public class Produto : BaseEntity
     public UnidadeMedida Unidade { get; set; } = UnidadeMedida.UN;
     public TipoProduto Tipo { get; set; } = TipoProduto.Fabricado;
     public decimal? Peso { get; set; }
-    public string? CodigoBarras { get; set; }
-    public string? Observacao { get; set; }
     public bool Ativo { get; set; } = true;
 }

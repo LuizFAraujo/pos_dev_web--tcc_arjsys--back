@@ -60,8 +60,6 @@ public class ProdutosController : ControllerBase
         existente.Unidade = produto.Unidade;
         existente.Tipo = produto.Tipo;
         existente.Peso = produto.Peso;
-        existente.CodigoBarras = produto.CodigoBarras;
-        existente.Observacao = produto.Observacao;
         existente.Ativo = produto.Ativo;
         existente.ModificadoEm = DateTime.UtcNow;
 
