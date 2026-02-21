@@ -1,5 +1,5 @@
-//https://localhost:7001/swagger
-//https://localhost:7001/scalar/v1
+//http://localhost:7000/swagger/index.html
+//http://localhost:7000/scalar/
 
 using Api_ArjSys_Tcc.Configurations;
 using Api_ArjSys_Tcc.Data;
@@ -45,6 +45,7 @@ builder.Services.AddCors(options =>
 
 // Services — registro dos serviços de negócio (injeção de dependência)
 builder.Services.AddScoped<ProdutoService>();
+builder.Services.AddScoped<BomService>();
 
 
 

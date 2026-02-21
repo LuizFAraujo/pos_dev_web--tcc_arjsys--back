@@ -11,14 +11,57 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Api_ArjSys_Tcc.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260217030417_CriarTabelaProdutos")]
-    partial class CriarTabelaProdutos
+    [Migration("20260219030905_CriarTabelasProdutosEstrutura")]
+    partial class CriarTabelasProdutosEstrutura
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
+
+            modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.EstruturaProduto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CriadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ModificadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Observacao")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Posicao")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProdutoFilhoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProdutoPaiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Quantidade")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProdutoFilhoId");
+
+                    b.HasIndex("ProdutoPaiId", "ProdutoFilhoId")
+                        .IsUnique();
+
+                    b.ToTable("EstruturasProdutos");
+                });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.Produto", b =>
                 {
@@ -73,6 +116,25 @@ namespace Api_ArjSys_Tcc.Migrations
                         .IsUnique();
 
                     b.ToTable("Produtos");
+                });
+
+            modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.EstruturaProduto", b =>
+                {
+                    b.HasOne("Api_ArjSys_Tcc.Models.Engenharia.Produto", "ProdutoFilho")
+                        .WithMany()
+                        .HasForeignKey("ProdutoFilhoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Api_ArjSys_Tcc.Models.Engenharia.Produto", "ProdutoPai")
+                        .WithMany()
+                        .HasForeignKey("ProdutoPaiId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProdutoFilho");
+
+                    b.Navigation("ProdutoPai");
                 });
 #pragma warning restore 612, 618
         }

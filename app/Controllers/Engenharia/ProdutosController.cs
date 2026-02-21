@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Api_ArjSys_Tcc.Models.Engenharia;
+using Api_ArjSys_Tcc.DTOs.Engenharia;
 using Api_ArjSys_Tcc.Services.Engenharia;
 
 namespace Api_ArjSys_Tcc.Controllers.Engenharia;
@@ -11,13 +11,13 @@ public class ProdutosController(ProdutoService service) : ControllerBase
     private readonly ProdutoService _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<List<Produto>>> GetAll()
+    public async Task<ActionResult<List<ProdutoResponseDTO>>> GetAll()
     {
         return await _service.GetAll();
     }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Produto>> GetById(int id)
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ProdutoResponseDTO>> GetById(int id)
     {
         var produto = await _service.GetById(id);
 
@@ -28,19 +28,16 @@ public class ProdutosController(ProdutoService service) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Produto>> Create(Produto produto)
+    public async Task<ActionResult<ProdutoResponseDTO>> Create(ProdutoCreateDTO dto)
     {
-        var criado = await _service.Create(produto);
+        var criado = await _service.Create(dto);
         return CreatedAtAction(nameof(GetById), new { id = criado.Id }, criado);
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, Produto produto)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, ProdutoCreateDTO dto)
     {
-        if (id != produto.Id)
-            return BadRequest();
-
-        var atualizado = await _service.Update(id, produto);
+        var atualizado = await _service.Update(id, dto);
 
         if (!atualizado)
             return NotFound();
@@ -48,7 +45,7 @@ public class ProdutosController(ProdutoService service) : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
         var removido = await _service.Delete(id);
