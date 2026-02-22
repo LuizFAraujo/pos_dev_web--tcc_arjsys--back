@@ -43,9 +43,18 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+
 // Services — registro dos serviços de negócio (injeção de dependência)
 builder.Services.AddScoped<ProdutoService>();
 builder.Services.AddScoped<BomService>();
+builder.Services.AddScoped<GrupoProdutoService>();
+builder.Services.AddScoped<GrupoVinculoService>();
+
+
+
+
+
 
 
 

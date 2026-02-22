@@ -7,6 +7,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<Produto> Produtos => Set<Produto>();
     public DbSet<EstruturaProduto> EstruturasProdutos => Set<EstruturaProduto>();
+    public DbSet<GrupoProduto> GruposProdutos => Set<GrupoProduto>();
+    public DbSet<GrupoVinculo> GruposVinculos => Set<GrupoVinculo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
