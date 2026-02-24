@@ -8,6 +8,8 @@ public class EstruturaProdutoConfiguration : IEntityTypeConfiguration<EstruturaP
 {
     public void Configure(EntityTypeBuilder<EstruturaProduto> builder)
     {
+        builder.ToTable("Engenharia_EstruturasProdutos");
+
         builder.HasIndex(e => new { e.ProdutoPaiId, e.ProdutoFilhoId }).IsUnique();
 
         builder.HasOne(e => e.ProdutoPai)

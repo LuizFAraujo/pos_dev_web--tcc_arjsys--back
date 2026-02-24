@@ -6,6 +6,7 @@ namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
 [ApiController]
 [Route("api/engenharia/[controller]")]
+[Tags("Engenharia - BOM")]
 public class BomController(BomService service) : ControllerBase
 {
     private readonly BomService _service = service;

@@ -8,6 +8,8 @@ public class GrupoProdutoConfiguration : IEntityTypeConfiguration<GrupoProduto>
 {
     public void Configure(EntityTypeBuilder<GrupoProduto> builder)
     {
+        builder.ToTable("Engenharia_GruposProdutos");
+
         builder.HasIndex(g => new { g.Codigo, g.Nivel }).IsUnique();
         builder.Property(g => g.Codigo).HasMaxLength(20);
         builder.Property(g => g.Descricao).HasMaxLength(100);

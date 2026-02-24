@@ -50,13 +50,13 @@ public class GrupoVinculoService(AppDbContext context)
         // Valida níveis consecutivos: Grupo→Subgrupo, Subgrupo→Familia
         var nivelPaiEsperado = filho.Nivel switch
         {
-            NivelGrupo.Subgrupo => NivelGrupo.Grupo,
-            NivelGrupo.Familia => NivelGrupo.Subgrupo,
+            NivelGrupo.Coluna2 => NivelGrupo.Coluna1,
+            NivelGrupo.Coluna3 => NivelGrupo.Coluna2,
             _ => (NivelGrupo?)null
         };
 
         if (nivelPaiEsperado == null)
-            return (null, "Grupo de nível 'Grupo' não pode ser filho de ninguém");
+            return (null, "Itens de Coluna 1 não podem ser filhos de ninguém");
 
         if (pai.Nivel != nivelPaiEsperado)
             return (null, $"Nível inválido: {filho.Nivel} só pode ser filho de {nivelPaiEsperado}");

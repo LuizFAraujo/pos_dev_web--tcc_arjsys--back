@@ -4,6 +4,7 @@ namespace Api_ArjSys_Tcc.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Tags("Sistema - Status")]
 public class StatusController : ControllerBase
 {
     [HttpGet]

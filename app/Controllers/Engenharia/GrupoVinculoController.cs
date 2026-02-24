@@ -6,6 +6,7 @@ namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
 [ApiController]
 [Route("api/engenharia/[controller]")]
+[Tags("Engenharia - Grupo Vínculos")]
 public class GrupoVinculoController(GrupoVinculoService service) : ControllerBase
 {
     private readonly GrupoVinculoService _service = service;

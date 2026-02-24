@@ -6,6 +6,7 @@ namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
 [ApiController]
 [Route("api/engenharia/[controller]")]
+[Tags("Engenharia - Produtos")]
 public class ProdutosController(ProdutoService service) : ControllerBase
 {
     private readonly ProdutoService _service = service;

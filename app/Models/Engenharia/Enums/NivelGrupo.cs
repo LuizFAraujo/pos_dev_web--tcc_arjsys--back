@@ -2,7 +2,7 @@
 
 public enum NivelGrupo
 {
-    Grupo,
-    Subgrupo,
-    Familia
+    Coluna1,
+    Coluna2,
+    Coluna3
 }

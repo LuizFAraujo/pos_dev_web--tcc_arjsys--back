@@ -57,7 +57,7 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.HasIndex("ProdutoPaiId", "ProdutoFilhoId")
                         .IsUnique();
 
-                    b.ToTable("EstruturasProdutos");
+                    b.ToTable("Engenharia_EstruturasProdutos", (string)null);
                 });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.GrupoProduto", b =>
@@ -108,7 +108,7 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.HasIndex("Codigo", "Nivel")
                         .IsUnique();
 
-                    b.ToTable("GruposProdutos");
+                    b.ToTable("Engenharia_GruposProdutos", (string)null);
                 });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.GrupoVinculo", b =>
@@ -142,7 +142,7 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.HasIndex("GrupoPaiId", "GrupoFilhoId")
                         .IsUnique();
 
-                    b.ToTable("GruposVinculos");
+                    b.ToTable("Engenharia_GruposVinculos", (string)null);
                 });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.Produto", b =>
@@ -197,7 +197,7 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.HasIndex("Codigo")
                         .IsUnique();
 
-                    b.ToTable("Produtos");
+                    b.ToTable("Engenharia_Produtos", (string)null);
                 });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.EstruturaProduto", b =>

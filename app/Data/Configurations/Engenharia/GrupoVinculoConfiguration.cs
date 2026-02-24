@@ -8,6 +8,8 @@ public class GrupoVinculoConfiguration : IEntityTypeConfiguration<GrupoVinculo>
 {
     public void Configure(EntityTypeBuilder<GrupoVinculo> builder)
     {
+        builder.ToTable("Engenharia_GruposVinculos");
+
         builder.HasIndex(v => new { v.GrupoPaiId, v.GrupoFilhoId }).IsUnique();
 
         builder.HasOne(v => v.GrupoPai)

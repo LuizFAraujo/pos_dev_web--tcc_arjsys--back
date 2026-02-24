@@ -8,6 +8,8 @@ public class ProdutoConfiguration : IEntityTypeConfiguration<Produto>
 {
     public void Configure(EntityTypeBuilder<Produto> builder)
     {
+        builder.ToTable("Engenharia_Produtos");
+
         builder.HasIndex(p => p.Codigo).IsUnique();
         builder.Property(p => p.Codigo).HasMaxLength(50);
         builder.Property(p => p.Descricao).HasMaxLength(140);

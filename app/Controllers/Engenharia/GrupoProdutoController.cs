@@ -6,6 +6,7 @@ namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
 [ApiController]
 [Route("api/engenharia/[controller]")]
+[Tags("Engenharia - Grupos")]
 public class GrupoProdutoController(GrupoProdutoService service) : ControllerBase
 {
     private readonly GrupoProdutoService _service = service;
