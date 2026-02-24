@@ -5,6 +5,7 @@ using Api_ArjSys_Tcc.Configurations;
 using Api_ArjSys_Tcc.Data;
 using Api_ArjSys_Tcc.Services.Engenharia;
 using Microsoft.EntityFrameworkCore;
+using Api_ArjSys_Tcc.Services.Admin;
 
 
 
@@ -46,10 +47,16 @@ builder.Services.AddCors(options =>
 
 
 // Services — registro dos serviços de negócio (injeção de dependência)
+// Engenharia
 builder.Services.AddScoped<ProdutoService>();
 builder.Services.AddScoped<BomService>();
 builder.Services.AddScoped<GrupoProdutoService>();
 builder.Services.AddScoped<GrupoVinculoService>();
+// Admin
+builder.Services.AddScoped<ClienteService>();
+builder.Services.AddScoped<FuncionarioService>();
+builder.Services.AddScoped<PermissaoService>();
+builder.Services.AddScoped<AuthService>();
 
 
 
