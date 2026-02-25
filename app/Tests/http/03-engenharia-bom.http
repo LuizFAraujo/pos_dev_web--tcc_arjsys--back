@@ -1,0 +1,82 @@
+### =============================================
+### ENGENHARIA - BOM (ESTRUTURA)
+### =============================================
+
+### Listar produtos com estrutura
+GET {{host}}/api/engenharia/Bom
+Accept: application/json
+
+### Paginado
+GET {{host}}/api/engenharia/Bom?pagina=1&tamanho=2
+Accept: application/json
+
+### Flat view completa
+GET {{host}}/api/engenharia/Bom/flat
+Accept: application/json
+
+### Flat view paginada
+GET {{host}}/api/engenharia/Bom/flat?pagina=1&tamanho=5
+Accept: application/json
+
+### Filhos de um produto (Picador 500, id=1)
+GET {{host}}/api/engenharia/Bom/produto/1
+Accept: application/json
+
+### Buscar item por ID
+GET {{host}}/api/engenharia/Bom/1
+Accept: application/json
+
+### Criar item (posição automática)
+POST {{host}}/api/engenharia/Bom
+Content-Type: application/json
+
+{
+  "produtoPaiId": 1,
+  "produtoFilhoId": 19,
+  "quantidade": 1
+}
+
+### Criar duplicado → 400
+POST {{host}}/api/engenharia/Bom
+Content-Type: application/json
+
+{
+  "produtoPaiId": 1,
+  "produtoFilhoId": 4,
+  "quantidade": 1
+}
+
+### Criar ciclo → 400 (Rotor é filho do Picador, tentar Picador como filho do Rotor)
+POST {{host}}/api/engenharia/Bom
+Content-Type: application/json
+
+{
+  "produtoPaiId": 4,
+  "produtoFilhoId": 1,
+  "quantidade": 1
+}
+
+### Auto-referência → 400
+POST {{host}}/api/engenharia/Bom
+Content-Type: application/json
+
+{
+  "produtoPaiId": 1,
+  "produtoFilhoId": 1,
+  "quantidade": 1
+}
+
+### Atualizar item (ajustar ID)
+PUT {{host}}/api/engenharia/Bom/17
+Content-Type: application/json
+
+{
+  "produtoPaiId": 1,
+  "produtoFilhoId": 19,
+  "quantidade": 3,
+  "posicao": 90,
+  "observacao": "Alterado via HTTP test"
+}
+
+### Deletar item (ajustar ID)
+DELETE {{host}}/api/engenharia/Bom/17

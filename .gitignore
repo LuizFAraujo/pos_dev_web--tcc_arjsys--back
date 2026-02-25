@@ -117,7 +117,7 @@ _ReSharper*/
 .env.*.local
 
 # ---------- Database ----------
-*.db
+#*.db
 *.db-shm
 *.db-wal
 *.mdf

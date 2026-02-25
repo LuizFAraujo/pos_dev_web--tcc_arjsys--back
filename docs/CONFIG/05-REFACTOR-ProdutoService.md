@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ♻️ REFACTOR: Cria ProdutoService e separa lógica do controller
 
 ## 💡 Por que separar em Services

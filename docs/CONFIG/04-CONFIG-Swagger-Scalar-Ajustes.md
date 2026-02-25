@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ⚙️ CONFIG: Adiciona Swagger UI, Scalar e ajustes gerais
 
 ## 📦 Passo 1 — Instalar pacotes NuGet

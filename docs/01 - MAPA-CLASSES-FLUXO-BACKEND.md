@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # 🗺️ Mapa de Classes e Fluxo — Backend ARJSYS
 
 > **Documento:** Relacionamento entre todas as classes, fluxo de dados e ordem de criação

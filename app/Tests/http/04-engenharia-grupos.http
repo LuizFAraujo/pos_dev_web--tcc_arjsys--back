@@ -1,0 +1,69 @@
+### =============================================
+### ENGENHARIA - GRUPOS DE PRODUTO
+### =============================================
+
+### Listar todos
+GET {{host}}/api/engenharia/GrupoProduto
+Accept: application/json
+
+### Filtrar por nível Coluna1
+GET {{host}}/api/engenharia/GrupoProduto/nivel/Coluna1
+Accept: application/json
+
+### Filtrar por nível Coluna2
+GET {{host}}/api/engenharia/GrupoProduto/nivel/Coluna2
+Accept: application/json
+
+### Filtrar por nível Coluna3
+GET {{host}}/api/engenharia/GrupoProduto/nivel/Coluna3
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/engenharia/GrupoProduto/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/engenharia/GrupoProduto/999
+Accept: application/json
+
+### Criar grupo
+POST {{host}}/api/engenharia/GrupoProduto
+Content-Type: application/json
+
+{
+  "codigo": "TS",
+  "descricao": "Grupo de Teste",
+  "nivel": "Coluna1",
+  "qtdCaracteres": 2,
+  "ativo": true
+}
+
+### Criar duplicado → 400
+POST {{host}}/api/engenharia/GrupoProduto
+Content-Type: application/json
+
+{
+  "codigo": "10",
+  "descricao": "Duplicado",
+  "nivel": "Coluna1",
+  "qtdCaracteres": 2,
+  "ativo": true
+}
+
+### Atualizar (ajustar ID)
+PUT {{host}}/api/engenharia/GrupoProduto/51
+Content-Type: application/json
+
+{
+  "codigo": "TS",
+  "descricao": "Grupo ATUALIZADO",
+  "nivel": "Coluna1",
+  "qtdCaracteres": 2,
+  "ativo": true
+}
+
+### Deletar sem vínculo (ajustar ID)
+DELETE {{host}}/api/engenharia/GrupoProduto/51
+
+### Deletar com vínculo → 400
+DELETE {{host}}/api/engenharia/GrupoProduto/1

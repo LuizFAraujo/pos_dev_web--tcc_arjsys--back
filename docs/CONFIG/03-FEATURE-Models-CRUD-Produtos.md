@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ✨ FEATURE: Implementa Models base e CRUD de Produtos
 
 ## 🏗️ Passo 1 — Criar a BaseEntity

@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ✨ FEATURE: Implementa módulo Admin (Pessoas, Clientes, Funcionários, Permissões, Login)
 
 ## 💡 Conceitos aplicados
@@ -289,7 +290,7 @@ Cada funcionário pode ter uma permissão por módulo do sistema. Os níveis sã
 ```json
 {
   "usuario": "joao.silva",
-  "senha": "arjsys123"
+  "senha": "123"
 }
 ```
 
@@ -333,7 +334,7 @@ Cada funcionário pode ter uma permissão por módulo do sistema. Os níveis sã
 
 ## 🔐 Funcionários de teste e senhas
 
-Todos os funcionários da carga inicial usam a senha: **arjsys123**
+Todos os funcionários da carga inicial usam a senha: **123**
 
 | Usuário | Cargo | Perfil de acesso |
 |---------|-------|------------------|

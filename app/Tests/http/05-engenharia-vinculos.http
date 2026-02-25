@@ -1,0 +1,58 @@
+### =============================================
+### ENGENHARIA - GRUPO VÍNCULOS
+### =============================================
+
+### Listar todos
+GET {{host}}/api/engenharia/GrupoVinculo
+Accept: application/json
+
+### Filhos de Coluna1 "10" (id=1)
+GET {{host}}/api/engenharia/GrupoVinculo/pai/1
+Accept: application/json
+
+### Filhos de Coluna1 "30" (id=3)
+GET {{host}}/api/engenharia/GrupoVinculo/pai/3
+Accept: application/json
+
+### Pai inexistente → lista vazia
+GET {{host}}/api/engenharia/GrupoVinculo/pai/999
+Accept: application/json
+
+### Criar vínculo (50-Comprado aceita PNE-Pneumática)
+POST {{host}}/api/engenharia/GrupoVinculo
+Content-Type: application/json
+
+{
+  "grupoPaiId": 5,
+  "grupoFilhoId": 17
+}
+
+### Criar duplicado → 400
+POST {{host}}/api/engenharia/GrupoVinculo
+Content-Type: application/json
+
+{
+  "grupoPaiId": 5,
+  "grupoFilhoId": 17
+}
+
+### Nível errado (Coluna1 → Coluna3 direto) → 400
+POST {{host}}/api/engenharia/GrupoVinculo
+Content-Type: application/json
+
+{
+  "grupoPaiId": 1,
+  "grupoFilhoId": 36
+}
+
+### Auto-referência → 400
+POST {{host}}/api/engenharia/GrupoVinculo
+Content-Type: application/json
+
+{
+  "grupoPaiId": 1,
+  "grupoFilhoId": 1
+}
+
+### Deletar vínculo (ajustar ID)
+DELETE {{host}}/api/engenharia/GrupoVinculo/51

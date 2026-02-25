@@ -1,0 +1,59 @@
+### =============================================
+### ADMIN - CLIENTES
+### =============================================
+
+### Listar todos
+GET {{host}}/api/admin/Clientes
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/admin/Clientes/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/admin/Clientes/999
+Accept: application/json
+
+### Criar cliente
+POST {{host}}/api/admin/Clientes
+Content-Type: application/json
+
+{
+  "nome": "Cliente Teste Ltda",
+  "cpfCnpj": "99.999.999/0001-99",
+  "telefone": "(44) 3399-9999",
+  "email": "teste@teste.com.br",
+  "endereco": "Rua Teste 100",
+  "cidade": "Maringá",
+  "estado": "PR",
+  "cep": "87000-000",
+  "razaoSocial": "Cliente Teste Ltda EPP",
+  "inscricaoEstadual": "999.99999-99",
+  "contatoComercial": "Teste - (44) 99999-9999"
+}
+
+### Criar sem nome → 400
+POST {{host}}/api/admin/Clientes
+Content-Type: application/json
+
+{
+  "nome": "",
+  "razaoSocial": "Sem Nome Ltda"
+}
+
+### Atualizar cliente (ajustar ID)
+PUT {{host}}/api/admin/Clientes/16
+Content-Type: application/json
+
+{
+  "nome": "Cliente Teste ATUALIZADO",
+  "cpfCnpj": "99.999.999/0001-99",
+  "telefone": "(44) 3399-8888",
+  "email": "atualizado@teste.com.br",
+  "cidade": "Londrina",
+  "estado": "PR",
+  "razaoSocial": "Cliente Teste Atualizado Ltda"
+}
+
+### Deletar cliente (ajustar ID)
+DELETE {{host}}/api/admin/Clientes/16

@@ -1,0 +1,10 @@
+### =============================================
+### SISTEMA - STATUS
+### =============================================
+
+@HostAddress = http://localhost:7000
+
+GET {{HostAddress}}/api/status
+Accept: application/json
+
+###

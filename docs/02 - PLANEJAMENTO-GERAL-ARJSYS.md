@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # 📋 Planejamento Geral — Sistema ERP ARJSYS
 
 > **Documento:** Visão geral do sistema, módulos, entidades e plano de ação

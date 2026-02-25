@@ -1,0 +1,134 @@
+{
+  // ============
+  // PARA TESTES HTTP
+  // ============
+  "rest-client.environmentVariables": {
+    "$shared": {
+      "host": "http://localhost:7000"
+    }
+  },
+
+  // =========================================================================
+
+  // "editor.formatOnPaste": false,
+  // "editor.formatOnSave": false,
+  // "editor.formatOnType": false,
+  // "prettier-eslint.eslintIntegration": true,
+
+  // "javascript.preferences.importModuleSpecifier": "non-relative",
+
+  // ============
+  // OCULTAR ARQUIVOS E PASTAS NO EXPLORER
+  // ============
+
+  // ============
+  // GERAL
+  // ============
+  // Remove do Explorer (sidebar)
+  "files.exclude": {
+    // Ocultar na raiz
+    "*__*": true,
+    "*.html": true,
+
+    ".vscode": true,
+    ".next": true,
+
+    "summernote": true,
+    "public": true,
+    "node_modules": true,
+
+    "*.md": true,
+
+    "*.env*": true,
+
+    "src/*-env.d*": true,
+
+    "*config*.js*": true,
+    "*config*.ts*": true,
+
+    ".git*": true,
+    ".prettier*": true,
+    ".eslint*": true,
+
+    ".npm*": true,
+    ".nvm*": true,
+
+    ".replit*": true,
+
+    "package*": true,
+    "yarn*": true,
+
+    "*.yaml": true,
+
+    "*.bat*": true,
+    "*.BAT*": true,
+
+    "LICENSE": true,
+
+    ".markdownlint.json": true,
+
+    "docs": true,
+
+    // Ocultar especificamente dentro de app/
+    "app/api": true,
+    "app/**/*config*.js*": true,
+    "app/**/*config*.ts*": true,
+    "app/**/*.env*": true,
+    "app/**/*-env.d*": true,
+
+    "app/.tanstack": true,
+    "app/node_modules": true,
+    "app/public": true
+
+    // ============
+    // arquivos abaixo são opcionais para esconder
+    // ============
+
+    // "@types": true,
+    // "*.config.*": true,
+    // "*.ht*": true,
+    // "*.json": true,
+    // "*.md": true,
+
+    // "*.env.example": true,
+    // ".prettierrc": true,
+    // ".editorconfig": true,
+    // "service.bat": true,
+    // "next-env.d.ts": true,
+    // "next.config.js": true,
+    // "src/react-app-env*": true,
+    // "src/_bkp": true,
+    // "src/__*": true,
+    // "src/*Test*": true,
+    // "src/*test*": true,
+    // "*.txt*": true,
+    // "yarn.lock": true,
+    // "*.bat*": true,
+    // "*.BAT*": true
+  },
+
+  // Remove apenas da busca (Ctrl+Shift+F)
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/app/api": true,
+    "**/*.config.*": true,
+    "**/.git": true
+  }
+
+  //   "git.ignoreLimitWarning": true
+
+  // ============
+
+  // Formata o código ao salvar
+  //   "editor.formatOnSave": true,
+
+  // Organiza os imports automaticamente ao salvar
+  //   "editor.codeActionsOnSave": {
+  //     "source.organizeImports": "always"
+  //   }
+}
+
+//    https://qastack.com.br/programming/30140112/how-do-i-hide-certain-files-from-the-sidebar-in-visual-studio-code
+
+//    https://rodrigoreisf.com.br/esconder-pastas-na-sidebar-do-vscode/#:~:text=Abra%20o%20Visual%20Studio%20Code,%7D%2C%20caso%20ainda%20n%C3%A3o%20exista

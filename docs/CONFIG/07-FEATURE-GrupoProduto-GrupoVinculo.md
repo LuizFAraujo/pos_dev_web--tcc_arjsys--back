@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ✨ FEATURE: Implementa GrupoProduto e GrupoVinculo
 
 ## 💡 Conceitos aplicados

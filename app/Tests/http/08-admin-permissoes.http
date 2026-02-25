@@ -1,0 +1,58 @@
+### =============================================
+### ADMIN - PERMISSÕES
+### =============================================
+
+### Listar permissões do Diretor (funcId=1, deve ter 6)
+GET {{host}}/api/admin/Permissoes/funcionario/1
+Accept: application/json
+
+### Listar permissões da Gerente Comercial (funcId=2, deve ter 4)
+GET {{host}}/api/admin/Permissoes/funcionario/2
+Accept: application/json
+
+### Funcionário inexistente → lista vazia
+GET {{host}}/api/admin/Permissoes/funcionario/999
+Accept: application/json
+
+### Criar permissão (Fernanda id=6, Engenharia, Leitura)
+POST {{host}}/api/admin/Permissoes
+Content-Type: application/json
+
+{
+  "funcionarioId": 6,
+  "modulo": "Engenharia",
+  "nivel": "Leitura"
+}
+
+### Criar duplicado → 400
+POST {{host}}/api/admin/Permissoes
+Content-Type: application/json
+
+{
+  "funcionarioId": 6,
+  "modulo": "Engenharia",
+  "nivel": "Leitura"
+}
+
+### Funcionário inexistente → 400
+POST {{host}}/api/admin/Permissoes
+Content-Type: application/json
+
+{
+  "funcionarioId": 999,
+  "modulo": "Engenharia",
+  "nivel": "Leitura"
+}
+
+### Atualizar nível (ajustar ID da permissão criada)
+PUT {{host}}/api/admin/Permissoes/39
+Content-Type: application/json
+
+{
+  "funcionarioId": 6,
+  "modulo": "Engenharia",
+  "nivel": "LeituraEscrita"
+}
+
+### Deletar permissão (ajustar ID)
+DELETE {{host}}/api/admin/Permissoes/39

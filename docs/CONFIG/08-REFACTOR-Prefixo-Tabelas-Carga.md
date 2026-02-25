@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ♻️ REFACTOR: Prefixo tabelas, ajuste grupos de código e carga inicial
 
 ## 💡 Tags nos Controllers (Swagger/Scalar)

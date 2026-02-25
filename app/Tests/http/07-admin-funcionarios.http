@@ -1,0 +1,75 @@
+### =============================================
+### ADMIN - FUNCIONÁRIOS
+### =============================================
+
+### Listar todos
+GET {{host}}/api/admin/Funcionarios
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/admin/Funcionarios/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/admin/Funcionarios/999
+Accept: application/json
+
+### Criar funcionário
+POST {{host}}/api/admin/Funcionarios
+Content-Type: application/json
+
+{
+  "nome": "Funcionário Teste",
+  "cpfCnpj": "111.222.333-44",
+  "telefone": "(44) 99999-0000",
+  "email": "func.teste@email.com",
+  "cargo": "Auxiliar",
+  "setor": "TI",
+  "usuario": "func.teste",
+  "senha": "teste123"
+}
+
+### Criar com usuário duplicado → 400
+POST {{host}}/api/admin/Funcionarios
+Content-Type: application/json
+
+{
+  "nome": "Outro Funcionário",
+  "usuario": "func.teste",
+  "senha": "outra123"
+}
+
+### Criar sem usuário → 400
+POST {{host}}/api/admin/Funcionarios
+Content-Type: application/json
+
+{
+  "nome": "Sem Usuário",
+  "usuario": "",
+  "senha": "teste123"
+}
+
+### Criar sem senha → 400
+POST {{host}}/api/admin/Funcionarios
+Content-Type: application/json
+
+{
+  "nome": "Sem Senha",
+  "usuario": "sem.senha",
+  "senha": ""
+}
+
+### Atualizar funcionário (ajustar ID)
+PUT {{host}}/api/admin/Funcionarios/11
+Content-Type: application/json
+
+{
+  "nome": "Funcionário ATUALIZADO",
+  "cargo": "Analista",
+  "setor": "Engenharia",
+  "usuario": "func.teste",
+  "senha": "novasenha456"
+}
+
+### Deletar funcionário (ajustar ID)
+DELETE {{host}}/api/admin/Funcionarios/11

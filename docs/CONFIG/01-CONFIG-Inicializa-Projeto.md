@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ⚙️ CONFIG: Inicializa projeto ASP.NET Core 10 Web API
 
 ## 🛠️ Pré-requisitos

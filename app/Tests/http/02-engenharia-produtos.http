@@ -1,0 +1,44 @@
+### =============================================
+### ENGENHARIA - PRODUTOS
+### =============================================
+
+### Listar todos
+GET {{host}}/api/engenharia/Produtos
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/engenharia/Produtos/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/engenharia/Produtos/999
+Accept: application/json
+
+### Criar produto
+POST {{host}}/api/engenharia/Produtos
+Content-Type: application/json
+
+{
+  "codigo": "TST-001",
+  "descricao": "Produto de Teste",
+  "unidade": "UN",
+  "tipo": "Fabricado",
+  "peso": 1.0,
+  "ativo": true
+}
+
+### Atualizar produto (ajustar ID)
+PUT {{host}}/api/engenharia/Produtos/71
+Content-Type: application/json
+
+{
+  "codigo": "TST-001",
+  "descricao": "Produto ATUALIZADO",
+  "unidade": "KG",
+  "tipo": "Comprado",
+  "peso": 2.5,
+  "ativo": true
+}
+
+### Deletar produto (ajustar ID)
+DELETE {{host}}/api/engenharia/Produtos/71

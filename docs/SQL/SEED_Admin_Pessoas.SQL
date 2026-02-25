@@ -53,19 +53,19 @@ INSERT INTO Admin_Clientes (PessoaId, RazaoSocial, InscricaoEstadual, ContatoCom
 -- Senha padrão para todos: "arjsys123"
 -- SHA256 hash: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 -- (na verdade o hash de "arjsys123" precisa ser calculado, vou usar o correto)
--- Hash SHA256 de "arjsys123" = a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58
+-- Hash SHA256 de "123" = a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
 -- =============================================
 INSERT INTO Admin_Funcionarios (PessoaId, Cargo, Setor, Usuario, SenhaHash, CriadoEm) VALUES
-(16, 'Diretor', 'Diretoria', 'joao.silva', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(17, 'Gerente Comercial', 'Comercial', 'maria.souza', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(18, 'Engenheiro Mecânico', 'Engenharia', 'carlos.lima', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(19, 'Analista PCP', 'PCP', 'ana.oliveira', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(20, 'Comprador', 'Compras', 'roberto.santos', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(21, 'Almoxarife', 'Almoxarifado', 'fernanda.costa', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(22, 'Operador de Produção', 'Produção', 'pedro.martins', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(23, 'Auxiliar de Produção', 'Produção', 'lucas.pereira', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(24, 'Vendedora', 'Comercial', 'juliana.almeida', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00'),
-(25, 'Administrador TI', 'TI', 'marcos.rocha', 'a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58', '2026-02-22T00:00:00');
+(16, 'Diretor', 'Diretoria', 'joao.silva', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(17, 'Gerente Comercial', 'Comercial', 'maria.souza', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(18, 'Engenheiro Mecânico', 'Engenharia', 'carlos.lima', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(19, 'Analista PCP', 'PCP', 'ana.oliveira', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(20, 'Comprador', 'Compras', 'roberto.santos', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(21, 'Almoxarife', 'Almoxarifado', 'fernanda.costa', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(22, 'Operador de Produção', 'Produção', 'pedro.martins', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(23, 'Auxiliar de Produção', 'Produção', 'lucas.pereira', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(24, 'Vendedora', 'Comercial', 'juliana.almeida', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00'),
+(25, 'Administrador TI', 'TI', 'marcos.rocha', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', '2026-02-22T00:00:00');
 
 -- =============================================
 -- ADMIN: PERMISSÕES

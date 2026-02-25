@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ✨ FEATURE: Implementa BOM (Estrutura de Produtos) com DTOs
 
 ## 💡 Conceitos aplicados

@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # ⚙️ CONFIG: Configura DbContext, SQLite, CORS e StatusController
 
 ## 🗄️ Passo 1 — Criar o AppDbContext

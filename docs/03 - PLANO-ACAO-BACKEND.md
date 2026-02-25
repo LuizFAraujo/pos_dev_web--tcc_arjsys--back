@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file -->
 # 🎯 Plano de Ação — Backend ARJSYS
 
 > **Documento:** Plano completo de implementação backend
