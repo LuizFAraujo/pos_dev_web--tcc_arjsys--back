@@ -1,0 +1,83 @@
+### =============================================
+### COMERCIAL - NÚMERO DE SÉRIE
+### =============================================
+
+### Listar todos
+GET {{host}}/api/comercial/NumeroSerie
+Accept: application/json
+
+### Listar paginado
+GET {{host}}/api/comercial/NumeroSerie?pagina=1&tamanho=5
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/comercial/NumeroSerie/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/comercial/NumeroSerie/999
+Accept: application/json
+
+### Buscar por pedido (pedido id=1, deve ter 1 N.Série)
+GET {{host}}/api/comercial/NumeroSerie/pedido/1
+Accept: application/json
+
+### Buscar por pedido sem N.Série (pedido id=12 Orcamento)
+GET {{host}}/api/comercial/NumeroSerie/pedido/12
+Accept: application/json
+
+### Criar N.Série para pedido Aprovado (pedido id=11, Aprovado)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 11
+}
+
+### Criar N.Série para pedido Orcamento → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 12
+}
+
+### Criar N.Série para pedido Cancelado → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 17
+}
+
+### Criar N.Série para pedido inexistente → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 999
+}
+
+### Alterar status: Aberto → EmFabricacao (ajustar ID)
+PATCH {{host}}/api/comercial/NumeroSerie/8/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmFabricacao"
+}
+
+### Alterar status: EmFabricacao → Concluido (ajustar ID)
+PATCH {{host}}/api/comercial/NumeroSerie/8/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluido"
+}
+
+### Transição inválida: Aberto → Concluido → 400
+PATCH {{host}}/api/comercial/NumeroSerie/9/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluido"
+}

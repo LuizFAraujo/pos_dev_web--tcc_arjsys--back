@@ -1,0 +1,78 @@
+### =============================================
+### COMERCIAL - ITENS DO PEDIDO
+### =============================================
+
+### Listar itens do pedido 1 (Metalúrgica São José, 2 itens)
+GET {{host}}/api/comercial/PedidoVenda/1/itens
+Accept: application/json
+
+### Listar itens do pedido 2 (Usina Santa Maria, 3 itens)
+GET {{host}}/api/comercial/PedidoVenda/2/itens
+Accept: application/json
+
+### Listar itens pedido inexistente → lista vazia
+GET {{host}}/api/comercial/PedidoVenda/999/itens
+Accept: application/json
+
+### Adicionar item em pedido Orcamento (usar pedido id=15 que está Orcamento)
+POST {{host}}/api/comercial/PedidoVenda/15/itens
+Content-Type: application/json
+
+{
+  "produtoId": 17,
+  "quantidade": 2,
+  "precoUnitario": 12000.00
+}
+
+### Adicionar produto duplicado no pedido → 400
+POST {{host}}/api/comercial/PedidoVenda/15/itens
+Content-Type: application/json
+
+{
+  "produtoId": 1,
+  "quantidade": 1,
+  "precoUnitario": 190000.00
+}
+
+### Adicionar item em pedido não-Orcamento → 400
+POST {{host}}/api/comercial/PedidoVenda/1/itens
+Content-Type: application/json
+
+{
+  "produtoId": 17,
+  "quantidade": 1,
+  "precoUnitario": 12000.00
+}
+
+### Produto inexistente → 400
+POST {{host}}/api/comercial/PedidoVenda/15/itens
+Content-Type: application/json
+
+{
+  "produtoId": 999,
+  "quantidade": 1,
+  "precoUnitario": 100.00
+}
+
+### Quantidade zero → 400
+POST {{host}}/api/comercial/PedidoVenda/15/itens
+Content-Type: application/json
+
+{
+  "produtoId": 18,
+  "quantidade": 0,
+  "precoUnitario": 100.00
+}
+
+### Atualizar item (ajustar IDs do pedido e item)
+PUT {{host}}/api/comercial/PedidoVenda/15/itens/35
+Content-Type: application/json
+
+{
+  "produtoId": 17,
+  "quantidade": 4,
+  "precoUnitario": 11500.00
+}
+
+### Deletar item (ajustar IDs)
+DELETE {{host}}/api/comercial/PedidoVenda/15/itens/35

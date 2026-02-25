@@ -1,0 +1,75 @@
+### =============================================
+### COMERCIAL - PEDIDOS DE VENDA
+### =============================================
+
+### Listar todos
+GET {{host}}/api/comercial/PedidoVenda
+Accept: application/json
+
+### Listar paginado
+GET {{host}}/api/comercial/PedidoVenda?pagina=1&tamanho=5
+Accept: application/json
+
+### Buscar por ID (com itens)
+GET {{host}}/api/comercial/PedidoVenda/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/comercial/PedidoVenda/999
+Accept: application/json
+
+### Criar pedido (cliente id=1 Metalúrgica São José)
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "observacoes": "Pedido de teste via HTTP"
+}
+
+### Criar pedido com cliente inexistente → 400
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 999
+}
+
+### Atualizar pedido (ajustar ID, só funciona se status=Orcamento)
+PUT {{host}}/api/comercial/PedidoVenda/21
+Content-Type: application/json
+
+{
+  "clienteId": 2,
+  "observacoes": "Pedido atualizado via HTTP"
+}
+
+### Alterar status: Orcamento → Aprovado (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Aprovado"
+}
+
+### Alterar status: Aprovado → EmProducao (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmProducao"
+}
+
+### Transição inválida: Orcamento → Concluido → 400
+PATCH {{host}}/api/comercial/PedidoVenda/15/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluido"
+}
+
+### Deletar pedido (só funciona se Orcamento e sem N.Série, ajustar ID)
+DELETE {{host}}/api/comercial/PedidoVenda/21
+
+### Deletar pedido não-Orcamento → 400
+DELETE {{host}}/api/comercial/PedidoVenda/1
