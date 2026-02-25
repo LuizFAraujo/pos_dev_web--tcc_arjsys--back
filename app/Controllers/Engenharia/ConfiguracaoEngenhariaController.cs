@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 using Api_ArjSys_Tcc.Services.Engenharia;
 
@@ -6,41 +6,41 @@ namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
 [ApiController]
 [Route("api/engenharia/[controller]")]
-[Tags("Engenharia - Produtos")]
-public class ProdutosController(ProdutoService service) : ControllerBase
+[Tags("Engenharia - Configurações")]
+public class ConfiguracaoEngenhariaController(ConfiguracaoEngenhariaService service) : ControllerBase
 {
-    private readonly ProdutoService _service = service;
+    private readonly ConfiguracaoEngenhariaService _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<List<ProdutoResponseDTO>>> GetAll()
+    public async Task<ActionResult<List<ConfiguracaoEngenhariaResponseDTO>>> GetAll()
     {
         return await _service.GetAll();
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<ProdutoResponseDTO>> GetById(int id)
+    [HttpGet("{chave}")]
+    public async Task<ActionResult<ConfiguracaoEngenhariaResponseDTO>> GetByChave(string chave)
     {
-        var produto = await _service.GetById(id);
+        var config = await _service.GetByChave(chave);
 
-        if (produto == null)
+        if (config == null)
             return NotFound();
 
-        return produto;
+        return config;
     }
 
     [HttpPost]
-    public async Task<ActionResult<ProdutoResponseDTO>> Create(ProdutoCreateDTO dto)
+    public async Task<ActionResult<ConfiguracaoEngenhariaResponseDTO>> Create(ConfiguracaoEngenhariaCreateDTO dto)
     {
         var (criado, erro) = await _service.Create(dto);
 
         if (erro != null)
             return BadRequest(new { erro });
 
-        return CreatedAtAction(nameof(GetById), new { id = criado!.Id }, criado);
+        return Ok(criado);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, ProdutoCreateDTO dto)
+    public async Task<IActionResult> Update(int id, ConfiguracaoEngenhariaCreateDTO dto)
     {
         var (sucesso, erro) = await _service.Update(id, dto);
 
@@ -65,12 +65,5 @@ public class ProdutosController(ProdutoService service) : ControllerBase
             return NotFound();
 
         return NoContent();
-    }
-
-    [HttpPost("varredura-documentos")]
-    public async Task<ActionResult<VarreduraDocumentosResultDTO>> VarrerDocumentos([FromQuery] string? prefixo)
-    {
-        var resultado = await _service.VarrerDocumentos(prefixo);
-        return Ok(resultado);
     }
 }

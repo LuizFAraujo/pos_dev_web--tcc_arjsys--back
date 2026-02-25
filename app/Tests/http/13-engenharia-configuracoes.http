@@ -1,0 +1,60 @@
+### =============================================
+### ENGENHARIA - CONFIGURAÇÕES
+### =============================================
+
+### Listar todas
+GET {{host}}/api/engenharia/ConfiguracaoEngenharia
+Accept: application/json
+
+### Buscar por chave
+GET {{host}}/api/engenharia/ConfiguracaoEngenharia/PathRaizDocumentos
+Accept: application/json
+
+### Buscar chave inexistente → 404
+GET {{host}}/api/engenharia/ConfiguracaoEngenharia/ChaveInexistente
+Accept: application/json
+
+### Criar configuração
+POST {{host}}/api/engenharia/ConfiguracaoEngenharia
+Content-Type: application/json
+
+{
+  "chave": "TestConfig",
+  "valor": "valor de teste",
+  "descricao": "Configuração criada via HTTP test"
+}
+
+### Criar duplicada → 400
+POST {{host}}/api/engenharia/ConfiguracaoEngenharia
+Content-Type: application/json
+
+{
+  "chave": "PathRaizDocumentos",
+  "valor": "outro valor",
+  "descricao": "Tentativa duplicada"
+}
+
+### Atualizar configuração (ajustar ID)
+PUT {{host}}/api/engenharia/ConfiguracaoEngenharia/1
+Content-Type: application/json
+
+{
+  "chave": "PathRaizDocumentos",
+  "valor": "D:\\NovoPath\\Codigos",
+  "descricao": "Path raiz atualizado"
+}
+
+### Deletar configuração de teste (ajustar ID)
+DELETE {{host}}/api/engenharia/ConfiguracaoEngenharia/2
+
+### =============================================
+### PATH DOCUMENTO (via GrupoProduto)
+### =============================================
+
+### Montar path do documento (grupo Coluna1 id=3 "30", código do produto)
+GET {{host}}/api/engenharia/GrupoProduto/3/path-documento/30.VLT.GM08.008.0000
+Accept: application/json
+
+### Grupo inexistente → 400
+GET {{host}}/api/engenharia/GrupoProduto/999/path-documento/30.VLT.GM08.008.0000
+Accept: application/json

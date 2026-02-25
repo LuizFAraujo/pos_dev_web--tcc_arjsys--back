@@ -1,0 +1,2 @@
+INSERT INTO Engenharia_Configuracoes (Chave, Valor, Descricao, CriadoEm) VALUES
+('PathRaizDocumentos', 'D:\Codigos', 'Caminho raiz padrão para documentos/desenhos de produtos', '2026-02-22T00:00:00');

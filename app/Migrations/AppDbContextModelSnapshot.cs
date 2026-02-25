@@ -337,6 +337,46 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.ToTable("Comercial_PedidosVendaItens", (string)null);
                 });
 
+            modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.ConfiguracaoEngenharia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Chave")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CriadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ModificadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Valor")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Chave")
+                        .IsUnique();
+
+                    b.ToTable("Engenharia_Configuracoes", (string)null);
+                });
+
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.EstruturaProduto", b =>
                 {
                     b.Property<int>("Id")
@@ -501,6 +541,9 @@ namespace Api_ArjSys_Tcc.Migrations
 
                     b.Property<decimal?>("Peso")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("TemDocumento")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Tipo")
                         .IsRequired()

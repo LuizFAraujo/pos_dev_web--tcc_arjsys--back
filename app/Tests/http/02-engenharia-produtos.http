@@ -24,7 +24,22 @@ Content-Type: application/json
   "unidade": "UN",
   "tipo": "Fabricado",
   "peso": 1.0,
-  "ativo": true
+  "ativo": true,
+  "temDocumento": false
+}
+
+### Criar produto com documento
+POST {{host}}/api/engenharia/Produtos
+Content-Type: application/json
+
+{
+  "codigo": "TST-002",
+  "descricao": "Produto com Desenho",
+  "unidade": "UN",
+  "tipo": "Fabricado",
+  "peso": 2.0,
+  "ativo": true,
+  "temDocumento": true
 }
 
 ### Atualizar produto (ajustar ID)
@@ -37,8 +52,25 @@ Content-Type: application/json
   "unidade": "KG",
   "tipo": "Comprado",
   "peso": 2.5,
-  "ativo": true
+  "ativo": true,
+  "temDocumento": true
 }
 
 ### Deletar produto (ajustar ID)
 DELETE {{host}}/api/engenharia/Produtos/71
+
+### =============================================
+### VARREDURA DE DOCUMENTOS
+### =============================================
+
+### Varredura total (todos os produtos)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos
+Accept: application/json
+
+### Varredura por prefixo (só produtos começando com 30)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=30
+Accept: application/json
+
+### Varredura por prefixo (só produtos começando com 70)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=70
+Accept: application/json

@@ -30,6 +30,7 @@ public static class OpenApiConfig
                     "Engenharia - BOM",
                     "Engenharia - Grupos",
                     "Engenharia - Grupo Vínculos",
+                    "Engenharia - Configurações",
 
                     "Comercial - Pedidos de Venda",
                     "Comercial - Itens do Pedido",

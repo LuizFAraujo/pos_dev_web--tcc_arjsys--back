@@ -103,14 +103,42 @@ public class GrupoProdutoService(AppDbContext context)
         return (true, null);
     }
 
-    public string MontarPathDocumento(GrupoProduto grupo, string codigoProduto, string pathRaiz)
-    {
-        var basePath = string.IsNullOrWhiteSpace(grupo.PathDocumentos)
-            ? Path.Combine(pathRaiz, grupo.Codigo)
-            : grupo.PathDocumentos;
 
-        return Path.Combine(basePath, codigoProduto);
+
+    /// <summary>
+    /// Monta o path completo do documento de um produto.
+    /// Se o grupo Coluna1 tem PathDocumentos customizado, usa ele.
+    /// Senão, usa o PathRaizDocumentos da configuração global + código do grupo.
+    /// </summary>
+    public async Task<(string? Path, string? Erro)> MontarPathDocumento(int grupoColuna1Id, string codigoProduto)
+    {
+        var grupo = await _context.GruposProdutos.FindAsync(grupoColuna1Id);
+
+        if (grupo == null)
+            return (null, "Grupo não encontrado");
+
+        string pathBase;
+
+        if (!string.IsNullOrWhiteSpace(grupo.PathDocumentos))
+        {
+            pathBase = grupo.PathDocumentos.TrimEnd('\\', '/');
+        }
+        else
+        {
+            var configRaiz = await _context.ConfiguracoesEngenharia
+                .FirstOrDefaultAsync(c => c.Chave == "PathRaizDocumentos");
+
+            if (configRaiz == null || string.IsNullOrWhiteSpace(configRaiz.Valor))
+                return (null, "Path raiz de documentos não configurado");
+
+            pathBase = System.IO.Path.Combine(configRaiz.Valor.TrimEnd('\\', '/'), grupo.Codigo);
+        }
+
+        var pathCompleto = System.IO.Path.Combine(pathBase, codigoProduto);
+        return (pathCompleto, null);
     }
+
+
 
     private static GrupoProdutoResponseDTO ToResponseDTO(GrupoProduto g) => new()
     {

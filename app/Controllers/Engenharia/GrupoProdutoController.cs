@@ -72,4 +72,18 @@ public class GrupoProdutoController(GrupoProdutoService service) : ControllerBas
 
         return NoContent();
     }
+
+
+    [HttpGet("{id:int}/path-documento/{codigoProduto}")]
+    public async Task<IActionResult> GetPathDocumento(int id, string codigoProduto)
+    {
+        var (path, erro) = await _service.MontarPathDocumento(id, codigoProduto);
+
+        if (erro != null)
+            return BadRequest(new { erro });
+
+        return Ok(new { path });
+    }
+
+
 }
