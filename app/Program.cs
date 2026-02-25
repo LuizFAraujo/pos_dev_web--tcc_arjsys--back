@@ -1,9 +1,11 @@
 //http://localhost:7000/swagger/index.html
 //http://localhost:7000/scalar/
 
+
+using Microsoft.EntityFrameworkCore;
+
 using Api_ArjSys_Tcc.Configurations;
 using Api_ArjSys_Tcc.Data;
-using Microsoft.EntityFrameworkCore;
 
 using Api_ArjSys_Tcc.Services.Engenharia;
 using Api_ArjSys_Tcc.Services.Admin;
@@ -12,10 +14,9 @@ using Api_ArjSys_Tcc.Services.Comercial;
 
 
 
-
-
-
 var builder = WebApplication.CreateBuilder(args);
+
+
 
 // ===== Serviços =====
 
@@ -28,12 +29,17 @@ builder.Services.AddControllers()
             new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
+
 // OpenAPI — gera o documento JSON que descreve todos os endpoints da API
-builder.Services.AddOpenApi();
+// builder.Services.AddOpenApi();
+// OpenAPI — gera documento com ordenação customizada das Tags no Swagger/Scalar
+builder.Services.AddOpenApiConfig();
+
 
 // Entity Framework + SQLite — ORM para acesso ao banco de dados
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 // CORS — permite o frontend (React/Vite) fazer requisições para esta API
 builder.Services.AddCors(options =>
@@ -68,11 +74,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PedidoVendaService>();
 builder.Services.AddScoped<PedidoVendaItemService>();
 builder.Services.AddScoped<NumeroSerieService>();
-
-
-
-
-
 
 
 
