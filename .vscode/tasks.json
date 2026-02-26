@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "▶ Run API",
+      "type": "shell",
+      "command": "dotnet run --project app",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "👁 Watch API",
+      "type": "shell",
+      "command": "dotnet watch --project app",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "🔨 Build API",
+      "type": "shell",
+      "command": "dotnet build --project app",
+      "group": "build"
+    }
+  ]
+}
