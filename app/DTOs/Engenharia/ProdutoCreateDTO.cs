@@ -24,6 +24,7 @@ public class ProdutoResponseDTO
     public TipoProduto Tipo { get; set; }
     public decimal? Peso { get; set; }
     public bool Ativo { get; set; }
+    public bool TemPasta { get; set; }
     public bool TemDocumento { get; set; }
     public DateTime CriadoEm { get; set; }
     public DateTime? ModificadoEm { get; set; }

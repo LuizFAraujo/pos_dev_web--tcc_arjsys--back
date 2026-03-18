@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
 using Api_ArjSys_Tcc.Models.Engenharia;
+using Api_ArjSys_Tcc.Models.Engenharia.Enums;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 
 namespace Api_ArjSys_Tcc.Services.Engenharia;
@@ -98,20 +99,20 @@ public class ProdutoService(AppDbContext context)
 
     /// <summary>
     /// Varre os produtos verificando se existe pasta e documento no path configurado.
-    /// Se prefixo informado, filtra por produtos cujo código começa com o prefixo.
-    /// Atualiza o campo TemDocumento de cada produto conforme encontra ou não o documento.
+    /// Usa Engenharia_PathDocumentos para paths alternativos por prefixo.
+    /// Se não há path alternativo ativo, usa PathRaizDocumentos + ControlarPorPrefixoRaiz.
     /// </summary>
     public async Task<VarreduraDocumentosResultDTO> VarrerDocumentos(string? prefixo)
     {
-        // Busca path raiz nas configurações
-        var configRaiz = await _context.ConfiguracoesEngenharia
-            .FirstOrDefaultAsync(c => c.Chave == "PathRaizDocumentos");
+        // Busca configurações globais
+        var configs = await _context.ConfiguracoesEngenharia.ToListAsync();
+        var pathRaiz = configs.FirstOrDefault(c => c.Chave == "PathRaizDocumentos")?.Valor?.TrimEnd('\\', '/');
+        var controlarPorPrefixoRaiz = configs.FirstOrDefault(c => c.Chave == "ControlarPorPrefixoRaiz")?.Valor == "true";
 
-        var pathRaiz = configRaiz?.Valor?.TrimEnd('\\', '/');
-
-        // Busca todos os grupos Coluna1 para paths customizados
-        var gruposColuna1 = await _context.GruposProdutos
-            .Where(g => g.Nivel == Models.Engenharia.Enums.NivelGrupo.Coluna1)
+        // Busca paths alternativos ativos com dados do grupo
+        var pathsAlternativos = await _context.PathDocumentos
+            .Include(p => p.GrupoProduto)
+            .Where(p => p.Ativo)
             .ToListAsync();
 
         // Busca produtos filtrados ou todos
@@ -129,20 +130,28 @@ public class ProdutoService(AppDbContext context)
 
         foreach (var produto in produtos)
         {
-            var temDoc = VerificarDocumento(produto.Codigo, gruposColuna1, pathRaiz);
-            var mudou = produto.TemDocumento != temDoc;
+            var (temPasta, temDoc) = VerificarDocumento(
+                produto.Codigo, pathsAlternativos, pathRaiz, controlarPorPrefixoRaiz);
+
+            var mudou = produto.TemPasta != temPasta || produto.TemDocumento != temDoc;
 
             if (mudou)
             {
+                produto.TemPasta = temPasta;
                 produto.TemDocumento = temDoc;
                 produto.ModificadoEm = DateTime.UtcNow;
                 resultado.Atualizados++;
             }
 
-            if (temDoc)
+            if (temPasta && temDoc)
                 resultado.ComDocumento++;
+            else if (temPasta && !temDoc)
+                resultado.PastaVazia++;
             else
-                resultado.SemDocumento++;
+                resultado.SemPasta++;
+
+            if (temPasta)
+                resultado.ComPasta++;
         }
 
         await _context.SaveChangesAsync();
@@ -150,45 +159,61 @@ public class ProdutoService(AppDbContext context)
     }
 
     /// <summary>
-    /// Verifica se existe pasta com nome do código e arquivo dentro com o mesmo nome.
-    /// Busca primeiro no path customizado do grupo, depois no path raiz.
+    /// Verifica se existe pasta e documento para um produto.
+    /// 1. Extrai prefixo do código (antes do primeiro ponto)
+    /// 2. Busca path alternativo ativo para o prefixo
+    ///    - Se existe → usa Path do registro + respeita ControlarPorPrefixo
+    ///    - Se não → usa PathRaizDocumentos + respeita ControlarPorPrefixoRaiz
+    /// 3. Monta caminho e verifica existência de pasta e arquivo
     /// </summary>
-    private static bool VerificarDocumento(string codigoProduto, List<GrupoProduto> gruposColuna1, string? pathRaiz)
+    private static (bool TemPasta, bool TemDocumento) VerificarDocumento(
+        string codigoProduto,
+        List<PathDocumentos> pathsAlternativos,
+        string? pathRaiz,
+        bool controlarPorPrefixoRaiz)
     {
         // Extrai o prefixo (Coluna1) do código do produto — antes do primeiro ponto
         var prefixoCodigo = codigoProduto.Split('.').FirstOrDefault();
 
         if (string.IsNullOrEmpty(prefixoCodigo))
-            return false;
-
-        // Encontra o grupo Coluna1 correspondente
-        var grupo = gruposColuna1.FirstOrDefault(g => g.Codigo == prefixoCodigo);
+            return (false, false);
 
         string? pathBase = null;
+        bool controlarPorPrefixo = false;
 
-        // Tenta path customizado do grupo
-        if (grupo != null && !string.IsNullOrWhiteSpace(grupo.PathDocumentos))
+        // Busca path alternativo ativo para este prefixo
+        var pathAlternativo = pathsAlternativos
+            .FirstOrDefault(p => p.GrupoProduto.Codigo == prefixoCodigo);
+
+        if (pathAlternativo != null)
         {
-            pathBase = grupo.PathDocumentos.TrimEnd('\\', '/');
+            pathBase = pathAlternativo.Path;
+            controlarPorPrefixo = pathAlternativo.ControlarPorPrefixo;
         }
-        // Senão usa path raiz + código do grupo
-        else if (!string.IsNullOrWhiteSpace(pathRaiz) && grupo != null)
+        else if (!string.IsNullOrWhiteSpace(pathRaiz))
         {
-            pathBase = Path.Combine(pathRaiz, grupo.Codigo);
+            pathBase = pathRaiz;
+            controlarPorPrefixo = controlarPorPrefixoRaiz;
         }
 
         if (string.IsNullOrEmpty(pathBase))
-            return false;
+            return (false, false);
 
-        // Verifica se existe pasta com nome do código
-        var pastaProduto = Path.Combine(pathBase, codigoProduto);
+        // Monta caminho da pasta do produto
+        string pastaProduto;
 
+        if (controlarPorPrefixo)
+            pastaProduto = Path.Combine(pathBase, prefixoCodigo, codigoProduto);
+        else
+            pastaProduto = Path.Combine(pathBase, codigoProduto);
+
+        // Verifica pasta
         if (!Directory.Exists(pastaProduto))
-            return false;
+            return (false, false);
 
-        // Verifica se dentro da pasta tem arquivo com o nome do código (qualquer extensão)
+        // Pasta existe — verifica arquivo
         var arquivos = Directory.GetFiles(pastaProduto, $"{codigoProduto}.*");
-        return arquivos.Length > 0;
+        return (true, arquivos.Length > 0);
     }
 
     private static ProdutoResponseDTO ToResponseDTO(Produto p) => new()
@@ -201,6 +226,7 @@ public class ProdutoService(AppDbContext context)
         Tipo = p.Tipo,
         Peso = p.Peso,
         Ativo = p.Ativo,
+        TemPasta = p.TemPasta,
         TemDocumento = p.TemDocumento,
         CriadoEm = p.CriadoEm,
         ModificadoEm = p.ModificadoEm

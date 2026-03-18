@@ -68,9 +68,17 @@ POST {{host}}/api/engenharia/Produtos/varredura-documentos
 Accept: application/json
 
 ### Varredura por prefixo (só produtos começando com 30)
-POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=30
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=50
 Accept: application/json
 
 ### Varredura por prefixo (só produtos começando com 70)
 POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=70
+Accept: application/json
+
+### =============================================
+### VALIDAR TemPasta NO RESPONSE
+### =============================================
+
+### GET produto — verificar que TemPasta aparece no response
+GET {{host}}/api/engenharia/Produtos/75
 Accept: application/json
