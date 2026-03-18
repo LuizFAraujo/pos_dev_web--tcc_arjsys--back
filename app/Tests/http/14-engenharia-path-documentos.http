@@ -1,0 +1,96 @@
+### =============================================
+### ENGENHARIA - PATH DOCUMENTOS
+### =============================================
+
+### Listar todos
+GET {{host}}/api/engenharia/PathDocumentos
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/engenharia/PathDocumentos/1
+Accept: application/json
+
+### Buscar ID inexistente → 404
+GET {{host}}/api/engenharia/PathDocumentos/999
+Accept: application/json
+
+### Criar path para prefixo "10" (ajustar GrupoProdutoId conforme seed)
+POST {{host}}/api/engenharia/PathDocumentos
+Content-Type: application/json
+
+{
+  "grupoProdutoId": 1,
+  "path": "D:\\Documentos\\Prefixo10",
+  "controlarPorPrefixo": false,
+  "ativo": true
+}
+
+### Criar duplicado (mesmo prefixo) → 400
+POST {{host}}/api/engenharia/PathDocumentos
+Content-Type: application/json
+
+{
+  "grupoProdutoId": 1,
+  "path": "D:\\OutroPath",
+  "controlarPorPrefixo": false,
+  "ativo": true
+}
+
+### Criar com grupo Coluna2 → 400 (só Coluna1 permitido)
+POST {{host}}/api/engenharia/PathDocumentos
+Content-Type: application/json
+
+{
+  "grupoProdutoId": 10,
+  "path": "D:\\PathInvalido",
+  "controlarPorPrefixo": false,
+  "ativo": true
+}
+
+### Criar com grupo inexistente → 400
+POST {{host}}/api/engenharia/PathDocumentos
+Content-Type: application/json
+
+{
+  "grupoProdutoId": 999,
+  "path": "D:\\PathInvalido",
+  "controlarPorPrefixo": false,
+  "ativo": true
+}
+
+### Criar com path vazio → 400
+POST {{host}}/api/engenharia/PathDocumentos
+Content-Type: application/json
+
+{
+  "grupoProdutoId": 2,
+  "path": "",
+  "controlarPorPrefixo": false,
+  "ativo": true
+}
+
+### Atualizar path (ajustar ID)
+PUT {{host}}/api/engenharia/PathDocumentos/1
+Content-Type: application/json
+
+{
+  "path": "D:\\Documentos\\NovoPath",
+  "controlarPorPrefixo": true,
+  "ativo": true
+}
+
+### Atualizar ID inexistente → 404
+PUT {{host}}/api/engenharia/PathDocumentos/999
+Content-Type: application/json
+
+{
+  "path": "D:\\Qualquer",
+  "controlarPorPrefixo": false,
+  "ativo": true
+}
+
+### Deletar (ajustar ID)
+DELETE {{host}}/api/engenharia/PathDocumentos/1
+
+### Deletar ID inexistente → 404
+DELETE {{host}}/api/engenharia/PathDocumentos/999

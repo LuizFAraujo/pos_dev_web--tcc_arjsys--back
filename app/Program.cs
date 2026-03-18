@@ -62,6 +62,7 @@ builder.Services.AddScoped<BomService>();
 builder.Services.AddScoped<GrupoProdutoService>();
 builder.Services.AddScoped<GrupoVinculoService>();
 builder.Services.AddScoped<ConfiguracaoEngenhariaService>();
+builder.Services.AddScoped<PathDocumentosService>();
 
 
 // Admin

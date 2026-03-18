@@ -31,6 +31,7 @@ public static class OpenApiConfig
                     "Engenharia - Grupos",
                     "Engenharia - Grupo Vínculos",
                     "Engenharia - Configurações",
+                    "Engenharia - Path Documentos",
 
                     "Comercial - Pedidos de Venda",
                     "Comercial - Itens do Pedido",
