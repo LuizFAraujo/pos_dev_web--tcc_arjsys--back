@@ -14,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<GrupoProduto> GruposProdutos => Set<GrupoProduto>();
     public DbSet<GrupoVinculo> GruposVinculos => Set<GrupoVinculo>();
     public DbSet<ConfiguracaoEngenharia> ConfiguracoesEngenharia => Set<ConfiguracaoEngenharia>();
+    public DbSet<PathDocumentos> PathDocumentos => Set<PathDocumentos>();
+    
 
 
 
