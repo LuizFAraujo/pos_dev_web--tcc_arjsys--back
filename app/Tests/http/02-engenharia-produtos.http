@@ -82,3 +82,43 @@ Accept: application/json
 ### GET produto — verificar que TemPasta aparece no response
 GET {{host}}/api/engenharia/Produtos/75
 Accept: application/json
+
+### =============================================
+### ABRIR PASTA E DOCUMENTO
+### =============================================
+
+### Abrir pasta do produto (ajustar ID para um com TemPasta = true)
+POST {{host}}/api/engenharia/Produtos/75/abrir-pasta
+Accept: application/json
+
+### Abrir pasta — produto inexistente → 400
+POST {{host}}/api/engenharia/Produtos/999/abrir-pasta
+Accept: application/json
+
+### Abrir pasta — produto sem pasta → 400
+POST {{host}}/api/engenharia/Produtos/2/abrir-pasta
+Accept: application/json
+
+### Listar extensões do produto (ajustar ID)
+GET {{host}}/api/engenharia/Produtos/75/extensoes-documento
+Accept: application/json
+
+### Listar extensões — produto inexistente → 400
+GET {{host}}/api/engenharia/Produtos/999/extensoes-documento
+Accept: application/json
+
+### Abrir documento — primeiro encontrado (ajustar ID)
+POST {{host}}/api/engenharia/Produtos/75/abrir-documento
+Accept: application/json
+
+### Abrir documento — extensão específica (ajustar ID e extensão)
+POST {{host}}/api/engenharia/Produtos/75/abrir-documento?extensao=pdf
+Accept: application/json
+
+### Abrir documento — extensão inexistente → 400
+POST {{host}}/api/engenharia/Produtos/75/abrir-documento?extensao=xyz
+Accept: application/json
+
+### Abrir documento — produto sem documento → 400
+POST {{host}}/api/engenharia/Produtos/2/abrir-documento
+Accept: application/json

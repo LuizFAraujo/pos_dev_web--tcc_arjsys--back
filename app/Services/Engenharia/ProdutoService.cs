@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.Models.Engenharia.Enums;
@@ -43,7 +44,6 @@ public class ProdutoService(AppDbContext context)
             Tipo = dto.Tipo,
             Peso = dto.Peso,
             Ativo = dto.Ativo,
-            TemDocumento = dto.TemDocumento,
             CriadoEm = DateTime.UtcNow
         };
 
@@ -72,7 +72,6 @@ public class ProdutoService(AppDbContext context)
         produto.Tipo = dto.Tipo;
         produto.Peso = dto.Peso;
         produto.Ativo = dto.Ativo;
-        produto.TemDocumento = dto.TemDocumento;
         produto.ModificadoEm = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -96,6 +95,200 @@ public class ProdutoService(AppDbContext context)
         await _context.SaveChangesAsync();
         return (true, null);
     }
+
+
+    // =============================================
+    // RESOLUÇÃO DE PATH (método compartilhado)
+    // =============================================
+
+    /// <summary>
+    /// Resolve o path completo da pasta de documentos de um produto.
+    /// Busca path alternativo ativo por prefixo, senão usa path raiz.
+    /// Retorna (path, null) se resolveu, (null, erro) se não conseguiu.
+    /// </summary>
+    private async Task<(string? Path, string? Erro)> ResolverPathProduto(string codigoProduto)
+    {
+        var prefixoCodigo = codigoProduto.Split('.').FirstOrDefault();
+
+        if (string.IsNullOrEmpty(prefixoCodigo))
+            return (null, "Código do produto não possui prefixo válido");
+
+        // Busca configurações globais
+        var configs = await _context.ConfiguracoesEngenharia.ToListAsync();
+        var pathRaiz = configs.FirstOrDefault(c => c.Chave == "PathRaizDocumentos")?.Valor?.TrimEnd('\\', '/');
+        var controlarPorPrefixoRaiz = configs.FirstOrDefault(c => c.Chave == "ControlarPorPrefixoRaiz")?.Valor == "true";
+
+        // Busca path alternativo ativo para este prefixo
+        var pathAlternativo = await _context.PathDocumentos
+            .Include(p => p.GrupoProduto)
+            .FirstOrDefaultAsync(p => p.Ativo && p.GrupoProduto.Codigo == prefixoCodigo);
+
+        string? pathBase = null;
+        bool controlarPorPrefixo = false;
+
+        if (pathAlternativo != null)
+        {
+            pathBase = pathAlternativo.Path;
+            controlarPorPrefixo = pathAlternativo.ControlarPorPrefixo;
+        }
+        else if (!string.IsNullOrWhiteSpace(pathRaiz))
+        {
+            pathBase = pathRaiz;
+            controlarPorPrefixo = controlarPorPrefixoRaiz;
+        }
+
+        if (string.IsNullOrEmpty(pathBase))
+            return (null, "Nenhum path de documentos configurado para este produto");
+
+        // Monta caminho da pasta do produto
+        string pastaProduto;
+
+        if (controlarPorPrefixo)
+            pastaProduto = Path.Combine(pathBase, prefixoCodigo, codigoProduto);
+        else
+            pastaProduto = Path.Combine(pathBase, codigoProduto);
+
+        return (pastaProduto, null);
+    }
+
+
+    // =============================================
+    // ABRIR PASTA
+    // =============================================
+
+    /// <summary>
+    /// Abre a pasta de documentos do produto no Windows Explorer.
+    /// Verifica se o produto existe, se tem pasta, e se o diretório existe no filesystem.
+    /// </summary>
+    public async Task<(AbrirPastaResultDTO? Item, string? Erro)> AbrirPasta(int id)
+    {
+        var produto = await _context.Produtos.FindAsync(id);
+
+        if (produto == null)
+            return (null, "Produto não encontrado");
+
+        if (!produto.TemPasta)
+            return (null, "Este produto não possui pasta de documentos");
+
+        var (path, erroPath) = await ResolverPathProduto(produto.Codigo);
+
+        if (erroPath != null)
+            return (null, erroPath);
+
+        if (!Directory.Exists(path))
+            return (null, $"Pasta não encontrada: {path}");
+
+        Process.Start("explorer.exe", path!);
+
+        return (new AbrirPastaResultDTO { Path = path!, Aberto = true }, null);
+    }
+
+
+    // =============================================
+    // LISTAR EXTENSÕES
+    // =============================================
+
+    /// <summary>
+    /// Lista as extensões de documentos encontrados na pasta do produto.
+    /// Retorna apenas arquivos cujo nome corresponde ao código do produto.
+    /// </summary>
+    public async Task<(ExtensoesDocumentoResultDTO? Item, string? Erro)> ListarExtensoes(int id)
+    {
+        var produto = await _context.Produtos.FindAsync(id);
+
+        if (produto == null)
+            return (null, "Produto não encontrado");
+
+        if (!produto.TemPasta)
+            return (null, "Este produto não possui pasta de documentos");
+
+        var (path, erroPath) = await ResolverPathProduto(produto.Codigo);
+
+        if (erroPath != null)
+            return (null, erroPath);
+
+        if (!Directory.Exists(path))
+            return (null, $"Pasta não encontrada: {path}");
+
+        var arquivos = Directory.GetFiles(path!, $"{produto.Codigo}.*");
+        var extensoes = arquivos
+            .Select(a => Path.GetExtension(a).TrimStart('.').ToLower())
+            .Where(e => !string.IsNullOrEmpty(e))
+            .OrderBy(e => e)
+            .ToList();
+
+        return (new ExtensoesDocumentoResultDTO { Path = path!, Extensoes = extensoes }, null);
+    }
+
+
+    // =============================================
+    // ABRIR DOCUMENTO
+    // =============================================
+
+    /// <summary>
+    /// Abre o documento do produto com o programa padrão do Windows.
+    /// Se extensão informada, abre o arquivo com essa extensão.
+    /// Se não informada, abre o primeiro arquivo encontrado.
+    /// </summary>
+    public async Task<(AbrirDocumentoResultDTO? Item, string? Erro)> AbrirDocumento(int id, string? extensao)
+    {
+        var produto = await _context.Produtos.FindAsync(id);
+
+        if (produto == null)
+            return (null, "Produto não encontrado");
+
+        if (!produto.TemDocumento)
+            return (null, "Este produto não possui documento cadastrado");
+
+        var (path, erroPath) = await ResolverPathProduto(produto.Codigo);
+
+        if (erroPath != null)
+            return (null, erroPath);
+
+        if (!Directory.Exists(path))
+            return (null, $"Pasta não encontrada: {path}");
+
+        string? arquivoPath;
+
+        if (!string.IsNullOrWhiteSpace(extensao))
+        {
+            // Extensão específica
+            arquivoPath = Path.Combine(path!, $"{produto.Codigo}.{extensao.TrimStart('.')}");
+
+            if (!File.Exists(arquivoPath))
+                return (null, $"Arquivo não encontrado: {produto.Codigo}.{extensao.TrimStart('.')}");
+        }
+        else
+        {
+            // Primeiro arquivo encontrado
+            var arquivos = Directory.GetFiles(path!, $"{produto.Codigo}.*");
+
+            if (arquivos.Length == 0)
+                return (null, "Nenhum arquivo encontrado na pasta do produto");
+
+            arquivoPath = arquivos[0];
+        }
+
+        var ext = Path.GetExtension(arquivoPath).TrimStart('.').ToLower();
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = arquivoPath,
+            UseShellExecute = true
+        });
+
+        return (new AbrirDocumentoResultDTO
+        {
+            Path = arquivoPath,
+            Extensao = ext,
+            Aberto = true
+        }, null);
+    }
+
+
+    // =============================================
+    // VARREDURA DE DOCUMENTOS
+    // =============================================
 
     /// <summary>
     /// Varre os produtos verificando se existe pasta e documento no path configurado.
@@ -160,11 +353,7 @@ public class ProdutoService(AppDbContext context)
 
     /// <summary>
     /// Verifica se existe pasta e documento para um produto.
-    /// 1. Extrai prefixo do código (antes do primeiro ponto)
-    /// 2. Busca path alternativo ativo para o prefixo
-    ///    - Se existe → usa Path do registro + respeita ControlarPorPrefixo
-    ///    - Se não → usa PathRaizDocumentos + respeita ControlarPorPrefixoRaiz
-    /// 3. Monta caminho e verifica existência de pasta e arquivo
+    /// Usado internamente pela varredura em lote (recebe dados pré-carregados).
     /// </summary>
     private static (bool TemPasta, bool TemDocumento) VerificarDocumento(
         string codigoProduto,
@@ -172,7 +361,6 @@ public class ProdutoService(AppDbContext context)
         string? pathRaiz,
         bool controlarPorPrefixoRaiz)
     {
-        // Extrai o prefixo (Coluna1) do código do produto — antes do primeiro ponto
         var prefixoCodigo = codigoProduto.Split('.').FirstOrDefault();
 
         if (string.IsNullOrEmpty(prefixoCodigo))
@@ -181,7 +369,6 @@ public class ProdutoService(AppDbContext context)
         string? pathBase = null;
         bool controlarPorPrefixo = false;
 
-        // Busca path alternativo ativo para este prefixo
         var pathAlternativo = pathsAlternativos
             .FirstOrDefault(p => p.GrupoProduto.Codigo == prefixoCodigo);
 
@@ -199,7 +386,6 @@ public class ProdutoService(AppDbContext context)
         if (string.IsNullOrEmpty(pathBase))
             return (false, false);
 
-        // Monta caminho da pasta do produto
         string pastaProduto;
 
         if (controlarPorPrefixo)
@@ -207,14 +393,13 @@ public class ProdutoService(AppDbContext context)
         else
             pastaProduto = Path.Combine(pathBase, codigoProduto);
 
-        // Verifica pasta
         if (!Directory.Exists(pastaProduto))
             return (false, false);
 
-        // Pasta existe — verifica arquivo
         var arquivos = Directory.GetFiles(pastaProduto, $"{codigoProduto}.*");
         return (true, arquivos.Length > 0);
     }
+
 
     private static ProdutoResponseDTO ToResponseDTO(Produto p) => new()
     {
