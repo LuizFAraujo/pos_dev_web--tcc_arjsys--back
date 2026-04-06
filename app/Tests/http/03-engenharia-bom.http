@@ -80,3 +80,23 @@ Content-Type: application/json
 
 ### Deletar item (ajustar ID)
 DELETE {{host}}/api/engenharia/Bom/17
+
+
+### =============================================
+### DELETAR ESTRUTURA COMPLETA
+### =============================================
+
+### Deletar todos os filhos diretos de um produto pai (ajustar ID)
+DELETE {{host}}/api/engenharia/Bom/estrutura/25
+Accept: application/json
+
+### Produto inexistente → 404
+DELETE {{host}}/api/engenharia/Bom/estrutura/999
+Accept: application/json
+
+### Produto sem filhos → 400
+DELETE {{host}}/api/engenharia/Bom/estrutura/25
+Accept: application/json
+
+
+

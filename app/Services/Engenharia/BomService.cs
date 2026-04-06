@@ -5,10 +5,18 @@ using Api_ArjSys_Tcc.DTOs.Engenharia;
 
 namespace Api_ArjSys_Tcc.Services.Engenharia;
 
+/// <summary>
+/// Serviço de BOM (Bill of Materials) — estrutura de produtos pai-filho.
+/// Gerencia relações entre produtos com validação de ciclo recursivo e posição automática.
+/// </summary>
 public class BomService(AppDbContext context)
 {
     private readonly AppDbContext _context = context;
 
+    /// <summary>
+    /// Lista produtos que possuem estrutura (são pai de pelo menos um filho).
+    /// Suporta paginação opcional.
+    /// </summary>
     public async Task<(List<ProdutoResponseDTO> Itens, int Total)> GetProdutosComEstrutura(int pagina = 1, int tamanhoPorPagina = 0)
     {
         var query = _context.Produtos
@@ -40,6 +48,9 @@ public class BomService(AppDbContext context)
         return (itens, total);
     }
 
+    /// <summary>
+    /// Lista os filhos diretos de um produto pai, ordenados por posição.
+    /// </summary>
     public async Task<List<EstruturaProdutoResponseDTO>> GetByProdutoId(int produtoPaiId)
     {
         return await _context.EstruturasProdutos
@@ -52,6 +63,9 @@ public class BomService(AppDbContext context)
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Busca um registro de estrutura por ID.
+    /// </summary>
     public async Task<EstruturaProdutoResponseDTO?> GetById(int id)
     {
         var item = await _context.EstruturasProdutos
@@ -61,6 +75,11 @@ public class BomService(AppDbContext context)
         return item == null ? null : ToResponseDTO(item);
     }
 
+    /// <summary>
+    /// Cria uma relação pai-filho na estrutura.
+    /// Valida: auto-referência, duplicidade e ciclo recursivo.
+    /// Se posição não informada, calcula automaticamente (próximo múltiplo de 10).
+    /// </summary>
     public async Task<(EstruturaProdutoResponseDTO? Item, string? Erro)> Create(EstruturaProdutoCreateDTO dto)
     {
         if (dto.ProdutoPaiId == dto.ProdutoFilhoId)
@@ -99,6 +118,10 @@ public class BomService(AppDbContext context)
         return (ToResponseDTO(item), null);
     }
 
+    /// <summary>
+    /// Atualiza uma relação existente.
+    /// Se o filho mudou, revalida duplicidade e ciclo recursivo.
+    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, EstruturaProdutoCreateDTO dto)
     {
         var existente = await _context.EstruturasProdutos.FindAsync(id);
@@ -136,6 +159,9 @@ public class BomService(AppDbContext context)
         return (true, null);
     }
 
+    /// <summary>
+    /// Remove um único registro de estrutura por ID.
+    /// </summary>
     public async Task<bool> Delete(int id)
     {
         var item = await _context.EstruturasProdutos.FindAsync(id);
@@ -148,12 +174,18 @@ public class BomService(AppDbContext context)
         return true;
     }
 
+    /// <summary>
+    /// Verifica se adicionar produtoFilhoId como filho de produtoPaiId criaria um ciclo.
+    /// </summary>
     private async Task<bool> VerificarCiclo(int produtoPaiId, int produtoFilhoId)
     {
         var visitados = new HashSet<int>();
         return await VerificarCicloRecursivo(produtoPaiId, produtoFilhoId, visitados);
     }
 
+    /// <summary>
+    /// Percorre recursivamente a árvore de filhos verificando se algum aponta de volta pro pai original.
+    /// </summary>
     private async Task<bool> VerificarCicloRecursivo(int produtoPaiOriginal, int filhoAtual, HashSet<int> visitados)
     {
         if (filhoAtual == produtoPaiOriginal)
@@ -176,6 +208,9 @@ public class BomService(AppDbContext context)
         return false;
     }
 
+    /// <summary>
+    /// Calcula a próxima posição disponível para um filho (próximo múltiplo de 10).
+    /// </summary>
     private async Task<int> CalcularProximaPosicao(int produtoPaiId)
     {
         var ultimaPosicao = await _context.EstruturasProdutos
@@ -185,6 +220,10 @@ public class BomService(AppDbContext context)
         return ((ultimaPosicao / 10) + 1) * 10;
     }
 
+    /// <summary>
+    /// Lista plana de todas as relações pai-filho com dados dos produtos.
+    /// Suporta paginação opcional.
+    /// </summary>
     public async Task<(List<EstruturaProdutoFlatDTO> Itens, int Total)> GetAllFlat(int pagina = 1, int tamanhoPorPagina = 0)
     {
         var query = _context.EstruturasProdutos
@@ -233,4 +272,28 @@ public class BomService(AppDbContext context)
         CriadoEm = e.CriadoEm,
         ModificadoEm = e.ModificadoEm
     };
+
+    /// <summary>
+    /// Remove todos os filhos diretos de uma estrutura (nível 2).
+    /// Não afeta estruturas internas dos filhos (nível 3+).
+    /// </summary>
+    public async Task<(bool Sucesso, string? Erro)> DeleteEstrutura(int produtoPaiId)
+    {
+        var produtoExiste = await _context.Produtos.AnyAsync(p => p.Id == produtoPaiId);
+
+        if (!produtoExiste)
+            return (false, null);
+
+        var filhosDiretos = await _context.EstruturasProdutos
+            .Where(e => e.ProdutoPaiId == produtoPaiId)
+            .ToListAsync();
+
+        if (filhosDiretos.Count == 0)
+            return (false, "Estrutura não possui filhos para remover");
+
+        _context.EstruturasProdutos.RemoveRange(filhosDiretos);
+        await _context.SaveChangesAsync();
+
+        return (true, null);
+    }
 }

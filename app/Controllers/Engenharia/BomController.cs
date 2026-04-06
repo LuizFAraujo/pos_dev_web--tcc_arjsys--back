@@ -11,6 +11,9 @@ public class BomController(BomService service) : ControllerBase
 {
     private readonly BomService _service = service;
 
+    /// <summary>
+    /// Listar produtos que possuem estrutura (são pai). Paginação opcional.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult> GetProdutosComEstrutura(
         [FromQuery] int pagina = 1,
@@ -28,12 +31,18 @@ public class BomController(BomService service) : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Listar filhos diretos de um produto pai
+    /// </summary>
     [HttpGet("produto/{produtoPaiId:int}")]
     public async Task<ActionResult<List<EstruturaProdutoResponseDTO>>> GetByProdutoId(int produtoPaiId)
     {
         return await _service.GetByProdutoId(produtoPaiId);
     }
 
+    /// <summary>
+    /// Buscar registro de estrutura por ID
+    /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<EstruturaProdutoResponseDTO>> GetById(int id)
     {
@@ -45,6 +54,9 @@ public class BomController(BomService service) : ControllerBase
         return item;
     }
 
+    /// <summary>
+    /// Adicionar filho à estrutura de um produto
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<EstruturaProdutoResponseDTO>> Create(EstruturaProdutoCreateDTO dto)
     {
@@ -56,6 +68,9 @@ public class BomController(BomService service) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = criado!.Id }, criado);
     }
 
+    /// <summary>
+    /// Atualizar registro de estrutura (quantidade, posição, filho)
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, EstruturaProdutoCreateDTO dto)
     {
@@ -70,6 +85,9 @@ public class BomController(BomService service) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Remover um único registro de estrutura por ID
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -81,6 +99,9 @@ public class BomController(BomService service) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Lista plana de todas as relações pai-filho. Paginação opcional.
+    /// </summary>
     [HttpGet("flat")]
     public async Task<ActionResult> GetAllFlat(
         [FromQuery] int pagina = 1,
@@ -98,5 +119,20 @@ public class BomController(BomService service) : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Deletar estrutura completa — remove todos os filhos diretos do produto pai
+    /// </summary>
+    [HttpDelete("estrutura/{produtoPaiId:int}")]
+    public async Task<IActionResult> DeleteEstrutura(int produtoPaiId)
+    {
+        var (sucesso, erro) = await _service.DeleteEstrutura(produtoPaiId);
 
+        if (erro != null)
+            return BadRequest(new { erro });
+
+        if (!sucesso)
+            return NotFound();
+
+        return NoContent();
+    }
 }
