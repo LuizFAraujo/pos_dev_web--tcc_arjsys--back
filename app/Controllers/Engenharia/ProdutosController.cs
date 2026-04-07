@@ -72,11 +72,19 @@ public class ProdutosController(ProdutoService service) : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Executar varredura de documentos em todos os produtos ou filtrado por prefixo</summary>
+    /// <summary>
+    /// Executar varredura de documentos. Suporta filtro por prefixo e paginação por lotes (offset + limit).
+    /// </summary>
     [HttpPost("varredura-documentos")]
-    public async Task<ActionResult<VarreduraDocumentosResultDTO>> VarrerDocumentos([FromQuery] string? prefixo)
+    public async Task<ActionResult<VarreduraDocumentosResultDTO>> VarrerDocumentos(
+        [FromQuery] string? prefixo,
+        [FromQuery] int? offset,
+        [FromQuery] int? limit)
     {
-        var resultado = await _service.VarrerDocumentos(prefixo);
+        if ((offset.HasValue && !limit.HasValue) || (!offset.HasValue && limit.HasValue))
+            return BadRequest(new { erro = "offset e limit devem ser informados juntos" });
+
+        var resultado = await _service.VarrerDocumentos(prefixo, offset, limit);
         return Ok(resultado);
     }
 

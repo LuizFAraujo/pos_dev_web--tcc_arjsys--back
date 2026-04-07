@@ -24,8 +24,7 @@ Content-Type: application/json
   "unidade": "UN",
   "tipo": "Fabricado",
   "peso": 1.0,
-  "ativo": true,
-  "temDocumento": false
+  "ativo": true
 }
 
 ### Criar produto com documento
@@ -38,8 +37,7 @@ Content-Type: application/json
   "unidade": "UN",
   "tipo": "Fabricado",
   "peso": 2.0,
-  "ativo": true,
-  "temDocumento": true
+  "ativo": true
 }
 
 ### Atualizar produto (ajustar ID)
@@ -52,36 +50,15 @@ Content-Type: application/json
   "unidade": "KG",
   "tipo": "Comprado",
   "peso": 2.5,
-  "ativo": true,
-  "temDocumento": true
+  "ativo": true
 }
 
 ### Deletar produto (ajustar ID)
 DELETE {{host}}/api/engenharia/Produtos/71
 
-### =============================================
-### VARREDURA DE DOCUMENTOS
-### =============================================
 
-### Varredura total (todos os produtos)
-POST {{host}}/api/engenharia/Produtos/varredura-documentos
-Accept: application/json
 
-### Varredura por prefixo (só produtos começando com 30)
-POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=50
-Accept: application/json
 
-### Varredura por prefixo (só produtos começando com 70)
-POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=70
-Accept: application/json
-
-### =============================================
-### VALIDAR TemPasta NO RESPONSE
-### =============================================
-
-### GET produto — verificar que TemPasta aparece no response
-GET {{host}}/api/engenharia/Produtos/75
-Accept: application/json
 
 ### =============================================
 ### ABRIR PASTA E DOCUMENTO
@@ -121,4 +98,55 @@ Accept: application/json
 
 ### Abrir documento — produto sem documento → 400
 POST {{host}}/api/engenharia/Produtos/2/abrir-documento
+Accept: application/json
+
+### GET produto — verificar que TemPasta aparece no response
+GET {{host}}/api/engenharia/Produtos/75
+Accept: application/json
+
+
+
+
+### =============================================
+### VARREDURA DE DOCUMENTOS
+### =============================================
+
+### Varredura total (todos os produtos)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos
+Accept: application/json
+
+### Varredura por prefixo (só produtos começando com 50)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=50
+Accept: application/json
+
+### Varredura por prefixo (só produtos começando com 70)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=70
+Accept: application/json
+
+
+
+
+
+### =============================================
+### VARREDURA EM LOTES
+### =============================================
+
+### Varredura — lote (primeiros 500)
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?offset=0&limit=500
+Accept: application/json
+
+### Varredura — segundo lote
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?offset=500&limit=500
+Accept: application/json
+
+### Varredura — lote com prefixo
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?prefixo=30&offset=0&limit=500
+Accept: application/json
+
+### Varredura — erro (offset sem limit) → 400
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?offset=0
+Accept: application/json
+
+### Varredura — erro (limit sem offset) → 400
+POST {{host}}/api/engenharia/Produtos/varredura-documentos?limit=500
 Accept: application/json

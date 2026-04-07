@@ -292,10 +292,10 @@ public class ProdutoService(AppDbContext context)
 
     /// <summary>
     /// Varre os produtos verificando se existe pasta e documento no path configurado.
-    /// Usa Engenharia_PathDocumentos para paths alternativos por prefixo.
-    /// Se não há path alternativo ativo, usa PathRaizDocumentos + ControlarPorPrefixoRaiz.
+    /// Suporta paginação por lotes (offset + limit) para varredura progressiva.
+    /// Quando sem offset/limit, varre tudo (comportamento legado).
     /// </summary>
-    public async Task<VarreduraDocumentosResultDTO> VarrerDocumentos(string? prefixo)
+    public async Task<VarreduraDocumentosResultDTO> VarrerDocumentos(string? prefixo, int? offset = null, int? limit = null)
     {
         // Busca configurações globais
         var configs = await _context.ConfiguracoesEngenharia.ToListAsync();
@@ -314,10 +314,20 @@ public class ProdutoService(AppDbContext context)
         if (!string.IsNullOrWhiteSpace(prefixo))
             query = query.Where(p => p.Codigo.StartsWith(prefixo));
 
-        var produtos = await query.ToListAsync();
+        // Total antes de paginar (para barra de progresso do frontend)
+        var totalGeral = await query.CountAsync();
+
+        // Aplica paginação por lote se informado
+        List<Produto> produtos;
+
+        if (offset.HasValue && limit.HasValue)
+            produtos = await query.OrderBy(p => p.Codigo).Skip(offset.Value).Take(limit.Value).ToListAsync();
+        else
+            produtos = await query.ToListAsync();
 
         var resultado = new VarreduraDocumentosResultDTO
         {
+            TotalGeral = totalGeral,
             TotalVerificados = produtos.Count
         };
 
