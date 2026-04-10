@@ -3,5 +3,6 @@
 ::dotnet publish -c Release -o ../publish
 
 
-:: empacata .net junto
-dotnet publish -c Release -o ../publish --self-contained true
+:: empacota .net junto
+::     dotnet publish -c Release -o ../publish --self-contained true
+   dotnet.cmd publish -c Release -o ../publish --self-contained true

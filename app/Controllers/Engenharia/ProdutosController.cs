@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Net;
+using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 using Api_ArjSys_Tcc.Services.Engenharia;
+using Api_ArjSys_Tcc.Helpers;
 
 namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 
@@ -88,11 +90,15 @@ public class ProdutosController(ProdutoService service) : ControllerBase
         return Ok(resultado);
     }
 
-    /// <summary>Abrir pasta de documentos do produto no Windows Explorer</summary>
+	/// <summary>
+    /// Abrir pasta de documentos do produto no Windows Explorer.
+    /// Se request vem de localhost, executa Process.Start. Se vem da rede, só retorna o path.
+    /// </summary>
     [HttpPost("{id:int}/abrir-pasta")]
     public async Task<ActionResult<AbrirPastaResultDTO>> AbrirPasta(int id)
     {
-        var (resultado, erro) = await _service.AbrirPasta(id);
+        var isLocal = RequestHelper.IsLocalRequest(HttpContext);
+        var (resultado, erro) = await _service.AbrirPasta(id, isLocal);
 
         if (erro != null)
             return BadRequest(new { erro });
@@ -112,15 +118,22 @@ public class ProdutosController(ProdutoService service) : ControllerBase
         return Ok(resultado);
     }
 
-    /// <summary>Abrir documento do produto com o programa padrão do Windows. Se extensão informada, abre essa específica; senão, abre o primeiro encontrado.</summary>
+	/// <summary>
+    /// Abrir documento do produto com o programa padrão do Windows.
+    /// Se extensão informada, abre essa específica; senão, abre o primeiro encontrado.
+    /// Se request vem de localhost, executa Process.Start. Se vem da rede, só retorna o path.
+    /// </summary>
     [HttpPost("{id:int}/abrir-documento")]
     public async Task<ActionResult<AbrirDocumentoResultDTO>> AbrirDocumento(int id, [FromQuery] string? extensao)
     {
-        var (resultado, erro) = await _service.AbrirDocumento(id, extensao);
+        var isLocal = RequestHelper.IsLocalRequest(HttpContext);
+        var (resultado, erro) = await _service.AbrirDocumento(id, extensao, isLocal);
 
         if (erro != null)
             return BadRequest(new { erro });
 
         return Ok(resultado);
     }
+
+
 }

@@ -156,11 +156,12 @@ public class ProdutoService(AppDbContext context)
     // ABRIR PASTA
     // =============================================
 
-    /// <summary>
+	/// <summary>
     /// Abre a pasta de documentos do produto no Windows Explorer.
     /// Verifica se o produto existe, se tem pasta, e se o diretório existe no filesystem.
+    /// Se abrirLocal = false (request da rede), só retorna o path sem abrir.
     /// </summary>
-    public async Task<(AbrirPastaResultDTO? Item, string? Erro)> AbrirPasta(int id)
+    public async Task<(AbrirPastaResultDTO? Item, string? Erro)> AbrirPasta(int id, bool abrirLocal = true)
     {
         var produto = await _context.Produtos.FindAsync(id);
 
@@ -178,11 +179,11 @@ public class ProdutoService(AppDbContext context)
         if (!Directory.Exists(path))
             return (null, $"Pasta não encontrada: {path}");
 
-        Process.Start("explorer.exe", path!);
+        if (abrirLocal)
+            Process.Start("explorer.exe", path!);
 
-        return (new AbrirPastaResultDTO { Path = path!, Aberto = true }, null);
+        return (new AbrirPastaResultDTO { Path = path!, Aberto = abrirLocal }, null);
     }
-
 
     // =============================================
     // LISTAR EXTENSÕES
@@ -229,8 +230,9 @@ public class ProdutoService(AppDbContext context)
     /// Abre o documento do produto com o programa padrão do Windows.
     /// Se extensão informada, abre o arquivo com essa extensão.
     /// Se não informada, abre o primeiro arquivo encontrado.
+    /// Se abrirLocal = false (request da rede), só retorna o path sem abrir.
     /// </summary>
-    public async Task<(AbrirDocumentoResultDTO? Item, string? Erro)> AbrirDocumento(int id, string? extensao)
+    public async Task<(AbrirDocumentoResultDTO? Item, string? Erro)> AbrirDocumento(int id, string? extensao, bool abrirLocal = true)
     {
         var produto = await _context.Produtos.FindAsync(id);
 
@@ -252,7 +254,6 @@ public class ProdutoService(AppDbContext context)
 
         if (!string.IsNullOrWhiteSpace(extensao))
         {
-            // Extensão específica
             arquivoPath = Path.Combine(path!, $"{produto.Codigo}.{extensao.TrimStart('.')}");
 
             if (!File.Exists(arquivoPath))
@@ -260,7 +261,6 @@ public class ProdutoService(AppDbContext context)
         }
         else
         {
-            // Primeiro arquivo encontrado
             var arquivos = Directory.GetFiles(path!, $"{produto.Codigo}.*");
 
             if (arquivos.Length == 0)
@@ -271,17 +271,20 @@ public class ProdutoService(AppDbContext context)
 
         var ext = Path.GetExtension(arquivoPath).TrimStart('.').ToLower();
 
-        Process.Start(new ProcessStartInfo
+        if (abrirLocal)
         {
-            FileName = arquivoPath,
-            UseShellExecute = true
-        });
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = arquivoPath,
+                UseShellExecute = true
+            });
+        }
 
         return (new AbrirDocumentoResultDTO
         {
             Path = arquivoPath,
             Extensao = ext,
-            Aberto = true
+            Aberto = abrirLocal
         }, null);
     }
 
