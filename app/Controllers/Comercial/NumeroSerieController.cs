@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Comercial;
 using Api_ArjSys_Tcc.Services.Comercial;
+using Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 namespace Api_ArjSys_Tcc.Controllers.Comercial;
 
@@ -11,10 +12,16 @@ public class NumeroSerieController(NumeroSerieService service) : ControllerBase
 {
     private readonly NumeroSerieService _service = service;
 
+    /// <summary>
+    /// Listar todos os NS. Suporta paginação e filtro por tipo (?tipo=Normal ou ?tipo=VendaFutura).
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<NumeroSerieResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)
+    public async Task<ActionResult<List<NumeroSerieResponseDTO>>> GetAll(
+        int pagina = 0,
+        int tamanho = 0,
+        [FromQuery] TipoNumeroSerie? tipo = null)
     {
-        return await _service.GetAll(pagina, tamanho);
+        return await _service.GetAll(pagina, tamanho, tipo);
     }
 
     [HttpGet("{id:int}")]

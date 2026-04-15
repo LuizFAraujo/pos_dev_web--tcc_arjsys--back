@@ -114,3 +114,70 @@ Content-Type: application/json
 {
   "novoStatus": "EmAndamento"
 }
+
+
+### =============================================
+### CRIAR NS COM TIPO E CÓDIGO PROJETO
+### =============================================
+
+### Criar NS tipo Normal (default) — pedido EmAndamento (ajustar ID)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 6,
+  "codigoProjeto": "PRJ-2026-001"
+}
+
+### Criar NS tipo Normal com status AguardandoEntrega (ajustar ID)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 6,
+  "tipo": "Normal",
+  "status": "AguardandoEntrega",
+  "codigoProjeto": "PRJ-2026-002"
+}
+
+### Criar NS tipo VendaFutura — pedido Aguardando (ajustar ID)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 13,
+  "tipo": "VendaFutura"
+}
+
+### Criar NS Normal em pedido Aguardando → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 13,
+  "tipo": "Normal"
+}
+
+### Criar NS VendaFutura com status EmAndamento → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 12,
+  "tipo": "VendaFutura",
+  "status": "EmAndamento"
+}
+
+### =============================================
+### FILTRAR POR TIPO
+### =============================================
+
+### Listar só Normal
+GET {{host}}/api/comercial/NumeroSerie?tipo=Normal
+Accept: application/json
+
+### Listar só VendaFutura
+GET {{host}}/api/comercial/NumeroSerie?tipo=VendaFutura
+Accept: application/json
+
+

@@ -13,13 +13,21 @@ public class NumeroSerieService(AppDbContext context)
     // Ano de fundação da empresa — usado para calcular a idade
     private const int AnoFundacao = 1966;
 
-    public async Task<List<NumeroSerieResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
+    /// <summary>
+    /// Lista todos os NS. Suporta paginação e filtro por tipo.
+    /// </summary>
+    public async Task<List<NumeroSerieResponseDTO>> GetAll(int pagina = 0, int tamanho = 0, TipoNumeroSerie? tipo = null)
     {
         var query = _context.NumerosSerie
             .Include(n => n.PedidoVenda)
                 .ThenInclude(p => p.Cliente)
                     .ThenInclude(c => c.Pessoa)
-            .OrderByDescending(n => n.CriadoEm);
+            .AsQueryable();
+
+        if (tipo.HasValue)
+            query = query.Where(n => n.Tipo == tipo.Value);
+
+        query = query.OrderByDescending(n => n.CriadoEm);
 
         List<NumeroSerie> lista;
 
@@ -30,7 +38,6 @@ public class NumeroSerieService(AppDbContext context)
 
         return lista.Select(ToResponseDTO).ToList();
     }
-
     public async Task<NumeroSerieResponseDTO?> GetById(int id)
     {
         var ns = await _context.NumerosSerie
@@ -53,6 +60,10 @@ public class NumeroSerieService(AppDbContext context)
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Cria Número de Série vinculado a um PV.
+    /// Status inicial: VendaFutura → Aguardando, Normal → EmAndamento (ou AguardandoEntrega se informado).
+    /// </summary>
     public async Task<(NumeroSerieResponseDTO? Item, string? Erro)> Create(NumeroSerieCreateDTO dto)
     {
         var pedido = await _context.PedidosVenda
@@ -63,11 +74,37 @@ public class NumeroSerieService(AppDbContext context)
         if (pedido == null)
             return (null, "Pedido não encontrado");
 
-        if (pedido.Status == StatusPedidoVenda.Aguardando)
-            return (null, "Pedido precisa estar Em Andamento para gerar Número de Série");
-
         if (pedido.Status == StatusPedidoVenda.Cancelado)
             return (null, "Não é possível gerar N.Série para pedido cancelado");
+
+        // VendaFutura pode ser criado em PV Aguardando
+        // Normal só pode ser criado em PV EmAndamento ou acima
+        if (dto.Tipo == TipoNumeroSerie.Normal && pedido.Status == StatusPedidoVenda.Aguardando)
+            return (null, "Pedido precisa estar Em Andamento para gerar N.Série tipo Normal");
+
+        // Determinar status inicial
+        StatusNumeroSerie statusInicial;
+
+        if (dto.Status.HasValue)
+        {
+            // Validar status informado conforme o tipo
+            statusInicial = dto.Status.Value;
+
+            if (dto.Tipo == TipoNumeroSerie.VendaFutura && statusInicial != StatusNumeroSerie.Aguardando)
+                return (null, "N.Série tipo Venda Futura deve iniciar com status Aguardando");
+
+            if (dto.Tipo == TipoNumeroSerie.Normal &&
+                statusInicial != StatusNumeroSerie.EmAndamento &&
+                statusInicial != StatusNumeroSerie.AguardandoEntrega)
+                return (null, "N.Série tipo Normal deve iniciar com status EmAndamento ou AguardandoEntrega");
+        }
+        else
+        {
+            // Default conforme tipo
+            statusInicial = dto.Tipo == TipoNumeroSerie.VendaFutura
+                ? StatusNumeroSerie.Aguardando
+                : StatusNumeroSerie.EmAndamento;
+        }
 
         var codigo = await GerarCodigo();
 
@@ -75,7 +112,9 @@ public class NumeroSerieService(AppDbContext context)
         {
             Codigo = codigo,
             PedidoVendaId = dto.PedidoVendaId,
-            Status = StatusNumeroSerie.EmAndamento,
+            Tipo = dto.Tipo,
+            Status = statusInicial,
+            CodigoProjeto = dto.CodigoProjeto,
             CriadoEm = DateTime.UtcNow
         };
 
@@ -154,7 +193,9 @@ public class NumeroSerieService(AppDbContext context)
         PedidoVendaId = n.PedidoVendaId,
         PedidoVendaCodigo = n.PedidoVenda.Codigo,
         ClienteNome = n.PedidoVenda.Cliente.Pessoa.Nome,
+        Tipo = n.Tipo,
         Status = n.Status,
+        CodigoProjeto = n.CodigoProjeto,
         CriadoEm = n.CriadoEm,
         ModificadoEm = n.ModificadoEm
     };
