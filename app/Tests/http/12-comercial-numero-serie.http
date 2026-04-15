@@ -22,11 +22,11 @@ Accept: application/json
 GET {{host}}/api/comercial/NumeroSerie/pedido/1
 Accept: application/json
 
-### Buscar por pedido sem N.Série (pedido id=12 Orcamento)
+### Buscar por pedido sem N.Série (pedido id=12 Aguardando)
 GET {{host}}/api/comercial/NumeroSerie/pedido/12
 Accept: application/json
 
-### Criar N.Série para pedido Aprovado (pedido id=11, Aprovado)
+### Criar N.Série para pedido EmAndamento (ajustar ID de pedido EmAndamento)
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -34,7 +34,7 @@ Content-Type: application/json
   "pedidoVendaId": 11
 }
 
-### Criar N.Série para pedido Orcamento → 400
+### Criar N.Série para pedido Aguardando → 400
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -58,26 +58,59 @@ Content-Type: application/json
   "pedidoVendaId": 999
 }
 
-### Alterar status: Aberto → EmFabricacao (ajustar ID)
+### =============================================
+### TRANSIÇÕES DE STATUS
+### =============================================
+
+### Aguardando → EmAndamento (ajustar ID)
 PATCH {{host}}/api/comercial/NumeroSerie/8/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmFabricacao"
+  "novoStatus": "EmAndamento"
 }
 
-### Alterar status: EmFabricacao → Concluido (ajustar ID)
+### EmAndamento → AguardandoEntrega (ajustar ID)
 PATCH {{host}}/api/comercial/NumeroSerie/8/status
 Content-Type: application/json
 
 {
-  "novoStatus": "Concluido"
+  "novoStatus": "AguardandoEntrega"
 }
 
-### Transição inválida: Aberto → Concluido → 400
+### AguardandoEntrega → Entregue (ajustar ID)
+PATCH {{host}}/api/comercial/NumeroSerie/8/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Entregue"
+}
+
+### Transição inválida: Aguardando → AguardandoEntrega → 400
 PATCH {{host}}/api/comercial/NumeroSerie/9/status
 Content-Type: application/json
 
 {
-  "novoStatus": "Concluido"
+  "novoStatus": "AguardandoEntrega"
+}
+
+### EmAndamento → Cancelado (ajustar ID)
+PATCH {{host}}/api/comercial/NumeroSerie/9/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Cancelado"
+}
+
+
+### =============================================
+### TRANSIÇÕES DE RETORNO (correção de erro)
+### =============================================
+
+### AguardandoEntrega → EmAndamento (ajustar ID)
+PATCH {{host}}/api/comercial/NumeroSerie/1/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento"
 }

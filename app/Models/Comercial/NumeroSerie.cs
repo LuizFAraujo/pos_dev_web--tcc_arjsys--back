@@ -7,5 +7,5 @@ public class NumeroSerie : BaseEntity
     public string Codigo { get; set; } = string.Empty;
     public int PedidoVendaId { get; set; }
     public PedidoVenda PedidoVenda { get; set; } = null!;
-    public StatusNumeroSerie Status { get; set; } = StatusNumeroSerie.Aberto;
+    public StatusNumeroSerie Status { get; set; } = StatusNumeroSerie.Aguardando;
 }

@@ -27,8 +27,8 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido == null)
             return (null, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Orcamento)
-            return (null, "Só é possível adicionar itens em pedidos com status Orçamento");
+        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
+            return (null, "Só é possível adicionar itens em pedidos com status Aguardando ou Em Andamento");
 
         var produto = await _context.Produtos.FindAsync(dto.ProdutoId);
 
@@ -67,8 +67,8 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido == null)
             return (false, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Orcamento)
-            return (false, "Só é possível editar itens em pedidos com status Orçamento");
+        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
+            return (false, "Só é possível editar itens em pedidos com status Aguardando ou Em Andamento");
 
         var item = await _context.PedidosVendaItens.FirstOrDefaultAsync(i => i.Id == id && i.PedidoVendaId == pedidoId);
 
@@ -93,8 +93,8 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido == null)
             return (false, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Orcamento)
-            return (false, "Só é possível remover itens em pedidos com status Orçamento");
+        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
+            return (false, "Só é possível remover itens em pedidos com status Aguardando ou Em Andamento");
 
         var item = await _context.PedidosVendaItens.FirstOrDefaultAsync(i => i.Id == id && i.PedidoVendaId == pedidoId);
 

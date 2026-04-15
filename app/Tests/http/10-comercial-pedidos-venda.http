@@ -35,7 +35,7 @@ Content-Type: application/json
   "clienteId": 999
 }
 
-### Atualizar pedido (ajustar ID, só funciona se status=Orcamento)
+### Atualizar pedido (ajustar ID, funciona se status Aguardando ou EmAndamento)
 PUT {{host}}/api/comercial/PedidoVenda/21
 Content-Type: application/json
 
@@ -44,23 +44,59 @@ Content-Type: application/json
   "observacoes": "Pedido atualizado via HTTP"
 }
 
-### Alterar status: Orcamento → Aprovado (ajustar ID)
+### =============================================
+### TRANSIÇÕES DE STATUS
+### =============================================
+
+### Aguardando → EmAndamento (ajustar ID)
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
 {
-  "novoStatus": "Aprovado"
+  "novoStatus": "EmAndamento"
 }
 
-### Alterar status: Aprovado → EmProducao (ajustar ID)
+### EmAndamento → Pausado (ajustar ID)
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmProducao"
+  "novoStatus": "Pausado"
 }
 
-### Transição inválida: Orcamento → Concluido → 400
+### Pausado → EmAndamento (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento"
+}
+
+### EmAndamento → Concluido (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluido"
+}
+
+### Concluido → AguardandoEntrega (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "AguardandoEntrega"
+}
+
+### AguardandoEntrega → Entregue (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Entregue"
+}
+
+### Transição inválida: Aguardando → Concluido → 400
 PATCH {{host}}/api/comercial/PedidoVenda/15/status
 Content-Type: application/json
 
@@ -68,8 +104,46 @@ Content-Type: application/json
   "novoStatus": "Concluido"
 }
 
-### Deletar pedido (só funciona se Orcamento e sem N.Série, ajustar ID)
+### EmAndamento → Cancelado (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Cancelado"
+}
+
+### Deletar pedido (só funciona se Aguardando e sem N.Série, ajustar ID)
 DELETE {{host}}/api/comercial/PedidoVenda/21
 
-### Deletar pedido não-Orcamento → 400
+### Deletar pedido não-Aguardando → 400
 DELETE {{host}}/api/comercial/PedidoVenda/1
+
+
+### =============================================
+### TRANSIÇÕES DE RETORNO (correção de erro)
+### =============================================
+
+### Concluido → EmAndamento (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento"
+}
+
+### AguardandoEntrega → Concluido (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluido"
+}
+
+### AguardandoEntrega → EmAndamento (ajustar ID)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento"
+}
+

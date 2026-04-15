@@ -12,7 +12,7 @@ public class NumeroSerieConfiguration : IEntityTypeConfiguration<NumeroSerie>
 
         builder.HasIndex(n => n.Codigo).IsUnique();
         builder.Property(n => n.Codigo).HasMaxLength(20);
-        builder.Property(n => n.Status).HasConversion<string>().HasMaxLength(20);
+        builder.Property(n => n.Status).HasConversion<string>().HasMaxLength(30);
 
         builder.HasOne(n => n.PedidoVenda)
                .WithMany()

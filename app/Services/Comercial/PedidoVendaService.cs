@@ -69,7 +69,7 @@ public class PedidoVendaService(AppDbContext context)
         {
             Codigo = codigo,
             ClienteId = dto.ClienteId,
-            Status = StatusPedidoVenda.Orcamento,
+            Status = StatusPedidoVenda.EmAndamento,
             Data = DateTime.UtcNow,
             Observacoes = dto.Observacoes,
             CriadoEm = DateTime.UtcNow
@@ -91,8 +91,8 @@ public class PedidoVendaService(AppDbContext context)
         if (pedido == null)
             return (false, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Orcamento)
-            return (false, "Só é possível editar pedidos com status Orçamento");
+        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
+            return (false, "Só é possível editar pedidos com status Aguardando ou Em Andamento");
 
         var cliente = await _context.Clientes.FindAsync(dto.ClienteId);
 
@@ -133,8 +133,8 @@ public class PedidoVendaService(AppDbContext context)
         if (pedido == null)
             return (false, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Orcamento)
-            return (false, "Só é possível excluir pedidos com status Orçamento");
+        if (pedido.Status != StatusPedidoVenda.Aguardando)
+            return (false, "Só é possível excluir pedidos com status Aguardando");
 
         var temNS = await _context.NumerosSerie.AnyAsync(n => n.PedidoVendaId == id);
 
@@ -174,12 +174,21 @@ public class PedidoVendaService(AppDbContext context)
     {
         return (atual, novo) switch
         {
-            (StatusPedidoVenda.Orcamento, StatusPedidoVenda.Aprovado) => true,
-            (StatusPedidoVenda.Orcamento, StatusPedidoVenda.Cancelado) => true,
-            (StatusPedidoVenda.Aprovado, StatusPedidoVenda.EmProducao) => true,
-            (StatusPedidoVenda.Aprovado, StatusPedidoVenda.Cancelado) => true,
-            (StatusPedidoVenda.EmProducao, StatusPedidoVenda.Concluido) => true,
+            (StatusPedidoVenda.Aguardando, StatusPedidoVenda.EmAndamento) => true,
+            (StatusPedidoVenda.Aguardando, StatusPedidoVenda.Cancelado) => true,
+            (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Pausado) => true,
+            (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Concluido) => true,
+            (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Cancelado) => true,
+            (StatusPedidoVenda.Pausado, StatusPedidoVenda.EmAndamento) => true,
+            (StatusPedidoVenda.Pausado, StatusPedidoVenda.Cancelado) => true,
             (StatusPedidoVenda.Concluido, StatusPedidoVenda.Entregue) => true,
+            (StatusPedidoVenda.Concluido, StatusPedidoVenda.AguardandoEntrega) => true,
+            (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.Entregue) => true,
+
+            // Retorno (correção de erro)
+            (StatusPedidoVenda.Concluido, StatusPedidoVenda.EmAndamento) => true,
+            (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.Concluido) => true,
+            (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.EmAndamento) => true,
             _ => false
         };
     }

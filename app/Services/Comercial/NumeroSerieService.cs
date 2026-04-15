@@ -63,8 +63,8 @@ public class NumeroSerieService(AppDbContext context)
         if (pedido == null)
             return (null, "Pedido não encontrado");
 
-        if (pedido.Status == StatusPedidoVenda.Orcamento)
-            return (null, "Pedido precisa estar aprovado para gerar Número de Série");
+        if (pedido.Status == StatusPedidoVenda.Aguardando)
+            return (null, "Pedido precisa estar Em Andamento para gerar Número de Série");
 
         if (pedido.Status == StatusPedidoVenda.Cancelado)
             return (null, "Não é possível gerar N.Série para pedido cancelado");
@@ -75,7 +75,7 @@ public class NumeroSerieService(AppDbContext context)
         {
             Codigo = codigo,
             PedidoVendaId = dto.PedidoVendaId,
-            Status = StatusNumeroSerie.Aberto,
+            Status = StatusNumeroSerie.EmAndamento,
             CriadoEm = DateTime.UtcNow
         };
 
@@ -135,9 +135,14 @@ public class NumeroSerieService(AppDbContext context)
     {
         return (atual, novo) switch
         {
-            (StatusNumeroSerie.Aberto, StatusNumeroSerie.EmFabricacao) => true,
-            (StatusNumeroSerie.EmFabricacao, StatusNumeroSerie.Concluido) => true,
-            (StatusNumeroSerie.Concluido, StatusNumeroSerie.Entregue) => true,
+            (StatusNumeroSerie.Aguardando, StatusNumeroSerie.EmAndamento) => true,
+            (StatusNumeroSerie.Aguardando, StatusNumeroSerie.Cancelado) => true,
+            (StatusNumeroSerie.EmAndamento, StatusNumeroSerie.AguardandoEntrega) => true,
+            (StatusNumeroSerie.EmAndamento, StatusNumeroSerie.Cancelado) => true,
+            (StatusNumeroSerie.AguardandoEntrega, StatusNumeroSerie.Entregue) => true,
+
+            // Retorno (correção de erro)
+            (StatusNumeroSerie.AguardandoEntrega, StatusNumeroSerie.EmAndamento) => true,
             _ => false
         };
     }

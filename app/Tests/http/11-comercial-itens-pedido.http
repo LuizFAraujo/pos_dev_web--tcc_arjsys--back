@@ -14,7 +14,7 @@ Accept: application/json
 GET {{host}}/api/comercial/PedidoVenda/999/itens
 Accept: application/json
 
-### Adicionar item em pedido Orcamento (usar pedido id=15 que está Orcamento)
+### Adicionar item em pedido Aguardando (usar pedido id=15 que está Aguardando)
 POST {{host}}/api/comercial/PedidoVenda/15/itens
 Content-Type: application/json
 
@@ -34,7 +34,7 @@ Content-Type: application/json
   "precoUnitario": 190000.00
 }
 
-### Adicionar item em pedido não-Orcamento → 400
+### Adicionar item em pedido Entregue → 400
 POST {{host}}/api/comercial/PedidoVenda/1/itens
 Content-Type: application/json
 
