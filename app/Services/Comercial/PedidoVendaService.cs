@@ -56,6 +56,9 @@ public class PedidoVendaService(AppDbContext context)
         return ToResponseDTO(pedido, itens);
     }
 
+    /// <summary>
+    /// Cria Pedido de Venda. Status inicial: Aguardando (venda futura) ou EmAndamento (default).
+    /// </summary>
     public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Create(PedidoVendaCreateDTO dto)
     {
         var cliente = await _context.Clientes.FindAsync(dto.ClienteId);
@@ -63,13 +66,19 @@ public class PedidoVendaService(AppDbContext context)
         if (cliente == null)
             return (null, "Cliente não encontrado");
 
+        // Validar status inicial
+        var statusInicial = dto.Status ?? StatusPedidoVenda.EmAndamento;
+
+        if (statusInicial != StatusPedidoVenda.Aguardando && statusInicial != StatusPedidoVenda.EmAndamento)
+            return (null, "Status inicial deve ser Aguardando ou EmAndamento");
+
         var codigo = await GerarCodigo();
 
         var pedido = new PedidoVenda
         {
             Codigo = codigo,
             ClienteId = dto.ClienteId,
-            Status = StatusPedidoVenda.EmAndamento,
+            Status = statusInicial,
             Data = DateTime.UtcNow,
             Observacoes = dto.Observacoes,
             CriadoEm = DateTime.UtcNow
@@ -107,6 +116,11 @@ public class PedidoVendaService(AppDbContext context)
         return (true, null);
     }
 
+    /// <summary>
+    /// Altera status do PV com validação de transição.
+    /// Automação: PV Aguardando → EmAndamento muda NS Aguardando vinculados para EmAndamento.
+    /// Automação: PV → Cancelado muda NS vinculados (que não sejam Entregue) para Cancelado.
+    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> AlterarStatus(int id, StatusPedidoVendaDTO dto)
     {
         var pedido = await _context.PedidosVenda.FindAsync(id);
@@ -119,8 +133,37 @@ public class PedidoVendaService(AppDbContext context)
         if (!transicaoValida)
             return (false, $"Transição inválida: {pedido.Status} → {dto.NovoStatus}");
 
+        var statusAnterior = pedido.Status;
         pedido.Status = dto.NovoStatus;
         pedido.ModificadoEm = DateTime.UtcNow;
+
+        // Automação: PV Aguardando → EmAndamento → NS Aguardando viram EmAndamento
+        if (statusAnterior == StatusPedidoVenda.Aguardando && dto.NovoStatus == StatusPedidoVenda.EmAndamento)
+        {
+            var nsAguardando = await _context.NumerosSerie
+                .Where(n => n.PedidoVendaId == id && n.Status == StatusNumeroSerie.Aguardando)
+                .ToListAsync();
+
+            foreach (var ns in nsAguardando)
+            {
+                ns.Status = StatusNumeroSerie.EmAndamento;
+                ns.ModificadoEm = DateTime.UtcNow;
+            }
+        }
+
+        // Automação: PV → Cancelado → NS que não são Entregue viram Cancelado
+        if (dto.NovoStatus == StatusPedidoVenda.Cancelado)
+        {
+            var nsParaCancelar = await _context.NumerosSerie
+                .Where(n => n.PedidoVendaId == id && n.Status != StatusNumeroSerie.Entregue)
+                .ToListAsync();
+
+            foreach (var ns in nsParaCancelar)
+            {
+                ns.Status = StatusNumeroSerie.Cancelado;
+                ns.ModificadoEm = DateTime.UtcNow;
+            }
+        }
 
         await _context.SaveChangesAsync();
         return (true, null);
@@ -181,7 +224,6 @@ public class PedidoVendaService(AppDbContext context)
             (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Cancelado) => true,
             (StatusPedidoVenda.Pausado, StatusPedidoVenda.EmAndamento) => true,
             (StatusPedidoVenda.Pausado, StatusPedidoVenda.Cancelado) => true,
-            (StatusPedidoVenda.Concluido, StatusPedidoVenda.Entregue) => true,
             (StatusPedidoVenda.Concluido, StatusPedidoVenda.AguardandoEntrega) => true,
             (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.Entregue) => true,
 

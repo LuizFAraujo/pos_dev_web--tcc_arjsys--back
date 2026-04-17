@@ -118,7 +118,6 @@ DELETE {{host}}/api/comercial/PedidoVenda/21
 ### Deletar pedido não-Aguardando → 400
 DELETE {{host}}/api/comercial/PedidoVenda/1
 
-
 ### =============================================
 ### TRANSIÇÕES DE RETORNO (correção de erro)
 ### =============================================
@@ -147,3 +146,73 @@ Content-Type: application/json
   "novoStatus": "EmAndamento"
 }
 
+### =============================================
+### CRIAR PV COM STATUS FLEXÍVEL
+### =============================================
+
+### Criar PV Aguardando (venda futura)
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "observacoes": "Pré-pedido - aguardando financiamento",
+  "status": "Aguardando"
+}
+
+### Criar PV EmAndamento (default, venda realizada)
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 2,
+  "observacoes": "Venda realizada"
+}
+
+### Criar PV com status inválido → 400
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "status": "Concluido"
+}
+
+### =============================================
+### AUTOMAÇÃO NS
+### =============================================
+
+### Passo 1: Criar PV Aguardando
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 3,
+  "observacoes": "Teste automação NS",
+  "status": "Aguardando"
+}
+
+### Passo 2: Criar NS VendaFutura vinculado ao PV (ajustar pedidoVendaId)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 22,
+  "tipo": "VendaFutura"
+}
+
+### Passo 3: Verificar NS está Aguardando (ajustar ID)
+GET {{host}}/api/comercial/NumeroSerie/pedido/22
+Accept: application/json
+
+### Passo 4: Aprovar PV (Aguardando → EmAndamento) — NS deve mudar automaticamente
+PATCH {{host}}/api/comercial/PedidoVenda/22/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento"
+}
+
+### Passo 5: Verificar NS agora está EmAndamento
+GET {{host}}/api/comercial/NumeroSerie/pedido/22
+Accept: application/json
