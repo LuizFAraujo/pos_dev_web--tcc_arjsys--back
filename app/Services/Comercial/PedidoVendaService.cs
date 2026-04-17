@@ -58,6 +58,7 @@ public class PedidoVendaService(AppDbContext context)
 
     /// <summary>
     /// Cria Pedido de Venda. Status inicial: Aguardando (venda futura) ou EmAndamento (default).
+    /// Registra evento Criado no histórico.
     /// </summary>
     public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Create(PedidoVendaCreateDTO dto)
     {
@@ -66,7 +67,6 @@ public class PedidoVendaService(AppDbContext context)
         if (cliente == null)
             return (null, "Cliente não encontrado");
 
-        // Validar status inicial
         var statusInicial = dto.Status ?? StatusPedidoVenda.EmAndamento;
 
         if (statusInicial != StatusPedidoVenda.Aguardando && statusInicial != StatusPedidoVenda.EmAndamento)
@@ -85,6 +85,9 @@ public class PedidoVendaService(AppDbContext context)
         };
 
         _context.PedidosVenda.Add(pedido);
+        await _context.SaveChangesAsync();
+
+        RegistrarEvento(pedido.Id, EventoPedidoVenda.Criado, dto.Observacoes);
         await _context.SaveChangesAsync();
 
         await _context.Entry(pedido).Reference(p => p.Cliente).LoadAsync();
@@ -118,6 +121,7 @@ public class PedidoVendaService(AppDbContext context)
 
     /// <summary>
     /// Altera status do PV com validação de transição.
+    /// Registra evento no histórico.
     /// Automação: PV Aguardando → EmAndamento muda NS Aguardando vinculados para EmAndamento.
     /// Automação: PV → Cancelado muda NS vinculados (que não sejam Entregue) para Cancelado.
     /// </summary>
@@ -165,6 +169,10 @@ public class PedidoVendaService(AppDbContext context)
             }
         }
 
+        // Registrar evento no histórico
+        var evento = MapearEvento(statusAnterior, dto.NovoStatus);
+        RegistrarEvento(id, evento, dto.Observacao);
+
         await _context.SaveChangesAsync();
         return (true, null);
     }
@@ -189,6 +197,25 @@ public class PedidoVendaService(AppDbContext context)
         _context.PedidosVenda.Remove(pedido);
         await _context.SaveChangesAsync();
         return (true, null);
+    }
+
+    /// <summary>
+    /// Retorna o histórico de eventos de um PV, ordenado do mais recente pro mais antigo.
+    /// </summary>
+    public async Task<List<PedidoVendaHistoricoResponseDTO>> GetHistorico(int pedidoVendaId)
+    {
+        return await _context.PedidoVendaHistorico
+            .Where(h => h.PedidoVendaId == pedidoVendaId)
+            .OrderByDescending(h => h.DataHora)
+            .Select(h => new PedidoVendaHistoricoResponseDTO
+            {
+                Id = h.Id,
+                PedidoVendaId = h.PedidoVendaId,
+                Evento = h.Evento,
+                DataHora = h.DataHora,
+                Observacao = h.Observacao
+            })
+            .ToListAsync();
     }
 
     private async Task<string> GerarCodigo()
@@ -233,6 +260,40 @@ public class PedidoVendaService(AppDbContext context)
             (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.EmAndamento) => true,
             _ => false
         };
+    }
+
+    /// <summary>
+    /// Mapeia a transição de status para o evento correspondente no histórico.
+    /// </summary>
+    private static EventoPedidoVenda MapearEvento(StatusPedidoVenda anterior, StatusPedidoVenda novo)
+    {
+        return novo switch
+        {
+            StatusPedidoVenda.EmAndamento when anterior == StatusPedidoVenda.Aguardando => EventoPedidoVenda.Aprovado,
+            StatusPedidoVenda.EmAndamento when anterior == StatusPedidoVenda.Pausado => EventoPedidoVenda.Retomado,
+            StatusPedidoVenda.EmAndamento => EventoPedidoVenda.Retomado,
+            StatusPedidoVenda.Pausado => EventoPedidoVenda.Pausado,
+            StatusPedidoVenda.Concluido => EventoPedidoVenda.Concluido,
+            StatusPedidoVenda.AguardandoEntrega => EventoPedidoVenda.AguardandoEntrega,
+            StatusPedidoVenda.Entregue => EventoPedidoVenda.Entregue,
+            StatusPedidoVenda.Cancelado => EventoPedidoVenda.Cancelado,
+            _ => EventoPedidoVenda.Criado
+        };
+    }
+
+    /// <summary>
+    /// Registra um evento no histórico do PV.
+    /// </summary>
+    private void RegistrarEvento(int pedidoVendaId, EventoPedidoVenda evento, string? observacao = null)
+    {
+        _context.PedidoVendaHistorico.Add(new PedidoVendaHistorico
+        {
+            PedidoVendaId = pedidoVendaId,
+            Evento = evento,
+            DataHora = DateTime.UtcNow,
+            Observacao = observacao,
+            CriadoEm = DateTime.UtcNow
+        });
     }
 
     private static PedidoVendaResponseDTO ToResponseDTO(PedidoVenda p, List<PedidoVendaItem> itens) => new()

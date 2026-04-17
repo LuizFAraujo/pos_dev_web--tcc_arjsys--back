@@ -2,6 +2,10 @@ using Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 namespace Api_ArjSys_Tcc.DTOs.Comercial;
 
+// Classe âncora — evita rename automático do VS Code
+public partial class PedidoVendaDTO { }
+
+
 /// <summary>
 /// Entrada — criar Pedido de Venda.
 /// Status opcional: Aguardando (venda futura) ou EmAndamento (default, venda realizada).
@@ -39,4 +43,9 @@ public class PedidoVendaResponseDTO
 public class StatusPedidoVendaDTO
 {
     public StatusPedidoVenda NovoStatus { get; set; }
+
+    /// <summary>
+    /// Observação opcional para o registro no histórico
+    /// </summary>
+    public string? Observacao { get; set; }
 }

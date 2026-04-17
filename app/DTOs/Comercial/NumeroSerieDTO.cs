@@ -2,6 +2,9 @@ using Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 namespace Api_ArjSys_Tcc.DTOs.Comercial;
 
+// Classe âncora — evita rename automático do VS Code
+public partial class NumeroSerieDTO { }
+
 /// <summary>
 /// Entrada — criar Número de Série.
 /// Tipo e status opcionais com defaults inteligentes.

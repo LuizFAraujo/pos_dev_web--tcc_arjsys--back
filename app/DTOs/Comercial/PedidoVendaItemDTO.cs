@@ -1,5 +1,8 @@
 namespace Api_ArjSys_Tcc.DTOs.Comercial;
 
+// Classe âncora — evita rename automático do VS Code
+public partial class PedidoVendaItemDTO { }
+
 public class PedidoVendaItemCreateDTO
 {
     public int ProdutoId { get; set; }

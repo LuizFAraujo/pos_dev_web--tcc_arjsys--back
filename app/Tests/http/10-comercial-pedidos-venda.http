@@ -216,3 +216,28 @@ Content-Type: application/json
 ### Passo 5: Verificar NS agora está EmAndamento
 GET {{host}}/api/comercial/NumeroSerie/pedido/22
 Accept: application/json
+
+
+### =============================================
+### HISTÓRICO DO PV
+### =============================================
+
+### Consultar histórico de um PV (ajustar ID)
+GET {{host}}/api/comercial/PedidoVenda/27/historico
+Accept: application/json
+
+### Alterar status com observação (ajustar ID de PV EmAndamento)
+PATCH {{host}}/api/comercial/PedidoVenda/27/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Pausado",
+  "observacao": "Cliente pediu pausa por 30 dias"
+}
+
+### Verificar histórico após mudança
+GET {{host}}/api/comercial/PedidoVenda/22/historico
+Accept: application/json
+
+
+

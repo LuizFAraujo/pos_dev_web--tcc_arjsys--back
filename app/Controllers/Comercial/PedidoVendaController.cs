@@ -80,4 +80,13 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>
+    /// Retorna o histórico de eventos do Pedido de Venda.
+    /// </summary>
+    [HttpGet("{id:int}/historico")]
+    public async Task<ActionResult<List<PedidoVendaHistoricoResponseDTO>>> GetHistorico(int id)
+    {
+        return await _service.GetHistorico(id);
+    }
 }

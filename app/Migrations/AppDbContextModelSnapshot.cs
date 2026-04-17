@@ -307,6 +307,46 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.ToTable("Comercial_PedidosVenda", (string)null);
                 });
 
+            modelBuilder.Entity("Api_ArjSys_Tcc.Models.Comercial.PedidoVendaHistorico", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CriadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DataHora")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Evento")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ModificadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PedidoVendaId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PedidoVendaId");
+
+                    b.ToTable("Comercial_PedidoVendaHistorico", (string)null);
+                });
+
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Comercial.PedidoVendaItem", b =>
                 {
                     b.Property<int>("Id")
@@ -682,6 +722,17 @@ namespace Api_ArjSys_Tcc.Migrations
                         .IsRequired();
 
                     b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("Api_ArjSys_Tcc.Models.Comercial.PedidoVendaHistorico", b =>
+                {
+                    b.HasOne("Api_ArjSys_Tcc.Models.Comercial.PedidoVenda", "PedidoVenda")
+                        .WithMany()
+                        .HasForeignKey("PedidoVendaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PedidoVenda");
                 });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Comercial.PedidoVendaItem", b =>

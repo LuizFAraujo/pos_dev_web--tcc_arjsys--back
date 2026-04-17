@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PedidoVenda> PedidosVenda => Set<PedidoVenda>();
     public DbSet<PedidoVendaItem> PedidosVendaItens => Set<PedidoVendaItem>();
     public DbSet<NumeroSerie> NumerosSerie => Set<NumeroSerie>();
+    public DbSet<PedidoVendaHistorico> PedidoVendaHistorico => Set<PedidoVendaHistorico>();
 
 
 
