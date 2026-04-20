@@ -6,6 +6,11 @@ using Api_ArjSys_Tcc.DTOs.Comercial;
 
 namespace Api_ArjSys_Tcc.Services.Comercial;
 
+/// <summary>
+/// Serviço do Número de Série.
+/// NS não tem tipo nem status próprios — herda do PV vinculado (exibição readonly).
+/// Relação 1:1 com PV.
+/// </summary>
 public class NumeroSerieService(AppDbContext context)
 {
     private readonly AppDbContext _context = context;
@@ -14,20 +19,15 @@ public class NumeroSerieService(AppDbContext context)
     private const int AnoFundacao = 1966;
 
     /// <summary>
-    /// Lista todos os NS. Suporta paginação e filtro por tipo.
+    /// Lista todos os NS com dados do PV vinculado. Suporta paginação.
     /// </summary>
-    public async Task<List<NumeroSerieResponseDTO>> GetAll(int pagina = 0, int tamanho = 0, TipoNumeroSerie? tipo = null)
+    public async Task<List<NumeroSerieResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
     {
         var query = _context.NumerosSerie
             .Include(n => n.PedidoVenda)
                 .ThenInclude(p => p.Cliente)
                     .ThenInclude(c => c.Pessoa)
-            .AsQueryable();
-
-        if (tipo.HasValue)
-            query = query.Where(n => n.Tipo == tipo.Value);
-
-        query = query.OrderByDescending(n => n.CriadoEm);
+            .OrderByDescending(n => n.CriadoEm);
 
         List<NumeroSerie> lista;
 
@@ -38,6 +38,10 @@ public class NumeroSerieService(AppDbContext context)
 
         return lista.Select(ToResponseDTO).ToList();
     }
+
+    /// <summary>
+    /// Busca NS por ID com dados do PV vinculado.
+    /// </summary>
     public async Task<NumeroSerieResponseDTO?> GetById(int id)
     {
         var ns = await _context.NumerosSerie
@@ -49,20 +53,25 @@ public class NumeroSerieService(AppDbContext context)
         return ns == null ? null : ToResponseDTO(ns);
     }
 
-    public async Task<List<NumeroSerieResponseDTO>> GetByPedidoId(int pedidoId)
+    /// <summary>
+    /// Busca o NS vinculado a um PV (relação 1:1). Retorna null se o PV não tiver NS.
+    /// </summary>
+    public async Task<NumeroSerieResponseDTO?> GetByPedidoId(int pedidoId)
     {
-        return await _context.NumerosSerie
-            .Where(n => n.PedidoVendaId == pedidoId)
+        var ns = await _context.NumerosSerie
             .Include(n => n.PedidoVenda)
                 .ThenInclude(p => p.Cliente)
                     .ThenInclude(c => c.Pessoa)
-            .Select(n => ToResponseDTO(n))
-            .ToListAsync();
+            .FirstOrDefaultAsync(n => n.PedidoVendaId == pedidoId);
+
+        return ns == null ? null : ToResponseDTO(ns);
     }
 
     /// <summary>
-    /// Cria Número de Série vinculado a um PV.
-    /// Status inicial: VendaFutura → Aguardando, Normal → EmAndamento (ou AguardandoEntrega se informado).
+    /// Cria NS vinculado a um PV. Regras:
+    /// - PV deve estar em status Aguardando ou EmAndamento;
+    /// - PV não pode estar Cancelado;
+    /// - 1 PV = 1 NS (rejeita se já existe NS vinculado).
     /// </summary>
     public async Task<(NumeroSerieResponseDTO? Item, string? Erro)> Create(NumeroSerieCreateDTO dto)
     {
@@ -77,34 +86,13 @@ public class NumeroSerieService(AppDbContext context)
         if (pedido.Status == StatusPedidoVenda.Cancelado)
             return (null, "Não é possível gerar N.Série para pedido cancelado");
 
-        // VendaFutura pode ser criado em PV Aguardando
-        // Normal só pode ser criado em PV EmAndamento ou acima
-        if (dto.Tipo == TipoNumeroSerie.Normal && pedido.Status == StatusPedidoVenda.Aguardando)
-            return (null, "Pedido precisa estar Em Andamento para gerar N.Série tipo Normal");
+        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
+            return (null, "Só é possível gerar N.Série para pedido em Aguardando ou Em Andamento");
 
-        // Determinar status inicial
-        StatusNumeroSerie statusInicial;
+        var jaExiste = await _context.NumerosSerie.AnyAsync(n => n.PedidoVendaId == dto.PedidoVendaId);
 
-        if (dto.Status.HasValue)
-        {
-            // Validar status informado conforme o tipo
-            statusInicial = dto.Status.Value;
-
-            if (dto.Tipo == TipoNumeroSerie.VendaFutura && statusInicial != StatusNumeroSerie.Aguardando)
-                return (null, "N.Série tipo Venda Futura deve iniciar com status Aguardando");
-
-            if (dto.Tipo == TipoNumeroSerie.Normal &&
-                statusInicial != StatusNumeroSerie.EmAndamento &&
-                statusInicial != StatusNumeroSerie.AguardandoEntrega)
-                return (null, "N.Série tipo Normal deve iniciar com status EmAndamento ou AguardandoEntrega");
-        }
-        else
-        {
-            // Default conforme tipo
-            statusInicial = dto.Tipo == TipoNumeroSerie.VendaFutura
-                ? StatusNumeroSerie.Aguardando
-                : StatusNumeroSerie.EmAndamento;
-        }
+        if (jaExiste)
+            return (null, "Este pedido já possui um Número de Série vinculado");
 
         var codigo = await GerarCodigo();
 
@@ -112,9 +100,7 @@ public class NumeroSerieService(AppDbContext context)
         {
             Codigo = codigo,
             PedidoVendaId = dto.PedidoVendaId,
-            Tipo = dto.Tipo,
-            Status = statusInicial,
-            CodigoProjeto = dto.CodigoProjeto,
+            CodigoProjeto = string.IsNullOrWhiteSpace(dto.CodigoProjeto) ? null : dto.CodigoProjeto.Trim(),
             CriadoEm = DateTime.UtcNow
         };
 
@@ -125,31 +111,32 @@ public class NumeroSerieService(AppDbContext context)
         return (ToResponseDTO(ns), null);
     }
 
-    public async Task<(bool Sucesso, string? Erro)> AlterarStatus(int id, StatusNumeroSerieDTO dto)
+    /// <summary>
+    /// Atualiza dados do NS (apenas campos próprios do NS — o PV é readonly aqui).
+    /// </summary>
+    public async Task<(bool Sucesso, string? Erro)> Update(int id, NumeroSerieUpdateDTO dto)
     {
         var ns = await _context.NumerosSerie.FindAsync(id);
 
         if (ns == null)
-            return (false, "Número de Série não encontrado");
+            return (false, null);
 
-        var valido = ValidarTransicaoStatus(ns.Status, dto.NovoStatus);
-
-        if (!valido)
-            return (false, $"Transição inválida: {ns.Status} → {dto.NovoStatus}");
-
-        ns.Status = dto.NovoStatus;
+        ns.CodigoProjeto = string.IsNullOrWhiteSpace(dto.CodigoProjeto) ? null : dto.CodigoProjeto.Trim();
         ns.ModificadoEm = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return (true, null);
     }
 
+    /// <summary>
+    /// Gera o próximo código no formato II.MM.AA.NNNNN.
+    /// </summary>
     private async Task<string> GerarCodigo()
     {
         var agora = DateTime.UtcNow;
         var idadeEmpresa = agora.Year - AnoFundacao;
         var mes = agora.Month;
-        var ano = agora.Year % 100; // 2 últimos dígitos
+        var ano = agora.Year % 100;
 
         var prefixo = $"{idadeEmpresa:D2}.{mes:D2}.{ano:D2}";
 
@@ -170,31 +157,19 @@ public class NumeroSerieService(AppDbContext context)
         return $"{prefixo}.{sequencial:D5}";
     }
 
-    private static bool ValidarTransicaoStatus(StatusNumeroSerie atual, StatusNumeroSerie novo)
-    {
-        return (atual, novo) switch
-        {
-            (StatusNumeroSerie.Aguardando, StatusNumeroSerie.EmAndamento) => true,
-            (StatusNumeroSerie.Aguardando, StatusNumeroSerie.Cancelado) => true,
-            (StatusNumeroSerie.EmAndamento, StatusNumeroSerie.AguardandoEntrega) => true,
-            (StatusNumeroSerie.EmAndamento, StatusNumeroSerie.Cancelado) => true,
-            (StatusNumeroSerie.AguardandoEntrega, StatusNumeroSerie.Entregue) => true,
-
-            // Retorno (correção de erro)
-            (StatusNumeroSerie.AguardandoEntrega, StatusNumeroSerie.EmAndamento) => true,
-            _ => false
-        };
-    }
-
+    /// <summary>
+    /// Converte entidade em DTO de resposta, incluindo dados readonly do PV.
+    /// </summary>
     private static NumeroSerieResponseDTO ToResponseDTO(NumeroSerie n) => new()
     {
         Id = n.Id,
         Codigo = n.Codigo,
         PedidoVendaId = n.PedidoVendaId,
-        PedidoVendaCodigo = n.PedidoVenda.Codigo,
-        ClienteNome = n.PedidoVenda.Cliente.Pessoa.Nome,
-        Tipo = n.Tipo,
-        Status = n.Status,
+        PedidoVendaCodigo = n.PedidoVenda?.Codigo ?? string.Empty,
+        ClienteNome = n.PedidoVenda?.Cliente?.Pessoa?.Nome ?? string.Empty,
+        PvTipo = n.PedidoVenda?.Tipo ?? TipoPedidoVenda.Normal,
+        PvStatus = n.PedidoVenda?.Status ?? StatusPedidoVenda.Aguardando,
+        PvDataEntrega = n.PedidoVenda?.DataEntrega,
         CodigoProjeto = n.CodigoProjeto,
         CriadoEm = n.CriadoEm,
         ModificadoEm = n.ModificadoEm

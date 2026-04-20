@@ -6,10 +6,17 @@ using Api_ArjSys_Tcc.DTOs.Comercial;
 
 namespace Api_ArjSys_Tcc.Services.Comercial;
 
+/// <summary>
+/// Serviço do Pedido de Venda.
+/// Gerencia CRUD, transições de status com justificativa condicional e histórico de eventos.
+/// </summary>
 public class PedidoVendaService(AppDbContext context)
 {
     private readonly AppDbContext _context = context;
 
+    /// <summary>
+    /// Lista todos os PVs. Suporta paginação opcional.
+    /// </summary>
     public async Task<List<PedidoVendaResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
     {
         var query = _context.PedidosVenda
@@ -30,7 +37,7 @@ public class PedidoVendaService(AppDbContext context)
         {
             var itens = await _context.PedidosVendaItens
                 .Where(i => i.PedidoVendaId == p.Id)
-                .Include(i => i.Produto)
+                .OrderBy(i => i.Id)
                 .ToListAsync();
 
             resultado.Add(ToResponseDTO(p, itens));
@@ -39,6 +46,9 @@ public class PedidoVendaService(AppDbContext context)
         return resultado;
     }
 
+    /// <summary>
+    /// Busca PV por ID, incluindo itens.
+    /// </summary>
     public async Task<PedidoVendaResponseDTO?> GetById(int id)
     {
         var pedido = await _context.PedidosVenda
@@ -50,58 +60,64 @@ public class PedidoVendaService(AppDbContext context)
 
         var itens = await _context.PedidosVendaItens
             .Where(i => i.PedidoVendaId == id)
-            .Include(i => i.Produto)
+            .OrderBy(i => i.Id)
             .ToListAsync();
 
         return ToResponseDTO(pedido, itens);
     }
 
     /// <summary>
-    /// Cria Pedido de Venda. Status inicial: Aguardando (venda futura) ou EmAndamento (default).
+    /// Cria Pedido de Venda. Status inicial é definido pelo tipo:
+    /// Normal → EmAndamento, VendaFutura → Aguardando.
     /// Registra evento Criado no histórico.
     /// </summary>
     public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Create(PedidoVendaCreateDTO dto)
     {
-        var cliente = await _context.Clientes.FindAsync(dto.ClienteId);
+        var cliente = await _context.Clientes
+            .Include(c => c.Pessoa)
+            .FirstOrDefaultAsync(c => c.Id == dto.ClienteId);
 
         if (cliente == null)
             return (null, "Cliente não encontrado");
 
-        var statusInicial = dto.Status ?? StatusPedidoVenda.EmAndamento;
-
-        if (statusInicial != StatusPedidoVenda.Aguardando && statusInicial != StatusPedidoVenda.EmAndamento)
-            return (null, "Status inicial deve ser Aguardando ou EmAndamento");
+        var statusInicial = dto.Tipo == TipoPedidoVenda.VendaFutura
+            ? StatusPedidoVenda.Aguardando
+            : StatusPedidoVenda.EmAndamento;
 
         var codigo = await GerarCodigo();
+        var agora = DateTime.UtcNow;
 
         var pedido = new PedidoVenda
         {
             Codigo = codigo,
             ClienteId = dto.ClienteId,
+            Tipo = dto.Tipo,
             Status = statusInicial,
-            Data = DateTime.UtcNow,
+            Data = dto.Data ?? agora,
+            DataEntrega = dto.DataEntrega,
             Observacoes = dto.Observacoes,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = agora
         };
 
         _context.PedidosVenda.Add(pedido);
         await _context.SaveChangesAsync();
 
-        RegistrarEvento(pedido.Id, EventoPedidoVenda.Criado, dto.Observacoes);
+        RegistrarEvento(pedido.Id, EventoPedidoVenda.Criado, null, statusInicial, null);
         await _context.SaveChangesAsync();
 
-        await _context.Entry(pedido).Reference(p => p.Cliente).LoadAsync();
-        await _context.Entry(pedido.Cliente).Reference(c => c.Pessoa).LoadAsync();
-
+        pedido.Cliente = cliente;
         return (ToResponseDTO(pedido, []), null);
     }
 
+    /// <summary>
+    /// Atualiza dados cadastrais do PV. Permitido apenas em Aguardando ou EmAndamento.
+    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, PedidoVendaCreateDTO dto)
     {
         var pedido = await _context.PedidosVenda.FindAsync(id);
 
         if (pedido == null)
-            return (false, "Pedido não encontrado");
+            return (false, null);
 
         if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
             return (false, "Só é possível editar pedidos com status Aguardando ou Em Andamento");
@@ -112,6 +128,9 @@ public class PedidoVendaService(AppDbContext context)
             return (false, "Cliente não encontrado");
 
         pedido.ClienteId = dto.ClienteId;
+        pedido.Tipo = dto.Tipo;
+        pedido.Data = dto.Data ?? pedido.Data;
+        pedido.DataEntrega = dto.DataEntrega;
         pedido.Observacoes = dto.Observacoes;
         pedido.ModificadoEm = DateTime.UtcNow;
 
@@ -120,69 +139,49 @@ public class PedidoVendaService(AppDbContext context)
     }
 
     /// <summary>
-    /// Altera status do PV com validação de transição.
-    /// Registra evento no histórico.
-    /// Automação: PV Aguardando → EmAndamento muda NS Aguardando vinculados para EmAndamento.
-    /// Automação: PV → Cancelado muda NS vinculados (que não sejam Entregue) para Cancelado.
+    /// Altera status do PV com validação de transição e justificativa.
+    /// Justificativa é obrigatória em: pausar, cancelar, retroceder (qualquer) e reabrir (sair do Cancelado).
+    /// Registra evento no histórico com statusAnterior, statusNovo e justificativa.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> AlterarStatus(int id, StatusPedidoVendaDTO dto)
     {
         var pedido = await _context.PedidosVenda.FindAsync(id);
 
         if (pedido == null)
-            return (false, "Pedido não encontrado");
-
-        var transicaoValida = ValidarTransicaoStatus(pedido.Status, dto.NovoStatus);
-
-        if (!transicaoValida)
-            return (false, $"Transição inválida: {pedido.Status} → {dto.NovoStatus}");
+            return (false, null);
 
         var statusAnterior = pedido.Status;
-        pedido.Status = dto.NovoStatus;
+        var novoStatus = dto.NovoStatus;
+
+        if (statusAnterior == novoStatus)
+            return (false, $"O pedido já está com status {novoStatus}");
+
+        // Justificativa: obrigatória em pausar, cancelar, reabrir e retroceder
+        var exigeJustificativa = ExigeJustificativa(statusAnterior, novoStatus);
+        var justificativa = dto.Justificativa?.Trim();
+
+        if (exigeJustificativa && string.IsNullOrWhiteSpace(justificativa))
+            return (false, "Justificativa é obrigatória para esta transição de status");
+
+        pedido.Status = novoStatus;
         pedido.ModificadoEm = DateTime.UtcNow;
 
-        // Automação: PV Aguardando → EmAndamento → NS Aguardando viram EmAndamento
-        if (statusAnterior == StatusPedidoVenda.Aguardando && dto.NovoStatus == StatusPedidoVenda.EmAndamento)
-        {
-            var nsAguardando = await _context.NumerosSerie
-                .Where(n => n.PedidoVendaId == id && n.Status == StatusNumeroSerie.Aguardando)
-                .ToListAsync();
-
-            foreach (var ns in nsAguardando)
-            {
-                ns.Status = StatusNumeroSerie.EmAndamento;
-                ns.ModificadoEm = DateTime.UtcNow;
-            }
-        }
-
-        // Automação: PV → Cancelado → NS que não são Entregue viram Cancelado
-        if (dto.NovoStatus == StatusPedidoVenda.Cancelado)
-        {
-            var nsParaCancelar = await _context.NumerosSerie
-                .Where(n => n.PedidoVendaId == id && n.Status != StatusNumeroSerie.Entregue)
-                .ToListAsync();
-
-            foreach (var ns in nsParaCancelar)
-            {
-                ns.Status = StatusNumeroSerie.Cancelado;
-                ns.ModificadoEm = DateTime.UtcNow;
-            }
-        }
-
-        // Registrar evento no histórico
-        var evento = MapearEvento(statusAnterior, dto.NovoStatus);
-        RegistrarEvento(id, evento, dto.Observacao);
+        var evento = MapearEvento(statusAnterior, novoStatus);
+        RegistrarEvento(id, evento, statusAnterior, novoStatus, justificativa);
 
         await _context.SaveChangesAsync();
         return (true, null);
     }
 
+    /// <summary>
+    /// Exclui PV. Permitido apenas em Aguardando e sem NS vinculado.
+    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Delete(int id)
     {
         var pedido = await _context.PedidosVenda.FindAsync(id);
 
         if (pedido == null)
-            return (false, "Pedido não encontrado");
+            return (false, null);
 
         if (pedido.Status != StatusPedidoVenda.Aguardando)
             return (false, "Só é possível excluir pedidos com status Aguardando");
@@ -190,10 +189,14 @@ public class PedidoVendaService(AppDbContext context)
         var temNS = await _context.NumerosSerie.AnyAsync(n => n.PedidoVendaId == id);
 
         if (temNS)
-            return (false, "Não é possível excluir pedido com Número de Série gerado");
+            return (false, "Não é possível excluir pedido com Número de Série vinculado");
 
         var itens = await _context.PedidosVendaItens.Where(i => i.PedidoVendaId == id).ToListAsync();
         _context.PedidosVendaItens.RemoveRange(itens);
+
+        var historico = await _context.PedidoVendaHistorico.Where(h => h.PedidoVendaId == id).ToListAsync();
+        _context.PedidoVendaHistorico.RemoveRange(historico);
+
         _context.PedidosVenda.Remove(pedido);
         await _context.SaveChangesAsync();
         return (true, null);
@@ -212,12 +215,17 @@ public class PedidoVendaService(AppDbContext context)
                 Id = h.Id,
                 PedidoVendaId = h.PedidoVendaId,
                 Evento = h.Evento,
-                DataHora = h.DataHora,
-                Observacao = h.Observacao
+                StatusAnterior = h.StatusAnterior,
+                StatusNovo = h.StatusNovo,
+                Justificativa = h.Justificativa,
+                DataHora = h.DataHora
             })
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Gera o próximo código no formato PV.AAAA.MM.NNNN.
+    /// </summary>
     private async Task<string> GerarCodigo()
     {
         var agora = DateTime.UtcNow;
@@ -240,26 +248,33 @@ public class PedidoVendaService(AppDbContext context)
         return $"{prefixo}.{sequencial:D4}";
     }
 
-    private static bool ValidarTransicaoStatus(StatusPedidoVenda atual, StatusPedidoVenda novo)
+    /// <summary>
+    /// Nível ordinal do status — usado para detectar retrocesso.
+    /// Cancelado é terminal (nível -1); qualquer saída do Cancelado é reabertura.
+    /// Pausado divide o nível 1 com EmAndamento (transição lateral, não retrocesso).
+    /// </summary>
+    private static int NivelStatus(StatusPedidoVenda status) => status switch
     {
-        return (atual, novo) switch
-        {
-            (StatusPedidoVenda.Aguardando, StatusPedidoVenda.EmAndamento) => true,
-            (StatusPedidoVenda.Aguardando, StatusPedidoVenda.Cancelado) => true,
-            (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Pausado) => true,
-            (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Concluido) => true,
-            (StatusPedidoVenda.EmAndamento, StatusPedidoVenda.Cancelado) => true,
-            (StatusPedidoVenda.Pausado, StatusPedidoVenda.EmAndamento) => true,
-            (StatusPedidoVenda.Pausado, StatusPedidoVenda.Cancelado) => true,
-            (StatusPedidoVenda.Concluido, StatusPedidoVenda.AguardandoEntrega) => true,
-            (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.Entregue) => true,
+        StatusPedidoVenda.Cancelado => -1,
+        StatusPedidoVenda.Aguardando => 0,
+        StatusPedidoVenda.EmAndamento => 1,
+        StatusPedidoVenda.Pausado => 1,
+        StatusPedidoVenda.Concluido => 2,
+        StatusPedidoVenda.AguardandoEntrega => 3,
+        StatusPedidoVenda.Entregue => 4,
+        _ => 0
+    };
 
-            // Retorno (correção de erro)
-            (StatusPedidoVenda.Concluido, StatusPedidoVenda.EmAndamento) => true,
-            (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.Concluido) => true,
-            (StatusPedidoVenda.AguardandoEntrega, StatusPedidoVenda.EmAndamento) => true,
-            _ => false
-        };
+    /// <summary>
+    /// Determina se a transição exige justificativa obrigatória.
+    /// Regra: pausar, cancelar, reabrir (saída do Cancelado) e retroceder (nível menor).
+    /// </summary>
+    private static bool ExigeJustificativa(StatusPedidoVenda atual, StatusPedidoVenda novo)
+    {
+        if (novo == StatusPedidoVenda.Pausado) return true;
+        if (novo == StatusPedidoVenda.Cancelado) return true;
+        if (atual == StatusPedidoVenda.Cancelado) return true; // reabertura
+        return NivelStatus(novo) < NivelStatus(atual);          // retrocesso
     }
 
     /// <summary>
@@ -267,16 +282,20 @@ public class PedidoVendaService(AppDbContext context)
     /// </summary>
     private static EventoPedidoVenda MapearEvento(StatusPedidoVenda anterior, StatusPedidoVenda novo)
     {
+        if (anterior == StatusPedidoVenda.Cancelado)
+            return EventoPedidoVenda.Reaberto;
+
         return novo switch
         {
             StatusPedidoVenda.EmAndamento when anterior == StatusPedidoVenda.Aguardando => EventoPedidoVenda.Aprovado,
             StatusPedidoVenda.EmAndamento when anterior == StatusPedidoVenda.Pausado => EventoPedidoVenda.Retomado,
             StatusPedidoVenda.EmAndamento => EventoPedidoVenda.Retomado,
             StatusPedidoVenda.Pausado => EventoPedidoVenda.Pausado,
+            StatusPedidoVenda.Cancelado => EventoPedidoVenda.Cancelado,
             StatusPedidoVenda.Concluido => EventoPedidoVenda.Concluido,
             StatusPedidoVenda.AguardandoEntrega => EventoPedidoVenda.AguardandoEntrega,
             StatusPedidoVenda.Entregue => EventoPedidoVenda.Entregue,
-            StatusPedidoVenda.Cancelado => EventoPedidoVenda.Cancelado,
+            StatusPedidoVenda.Aguardando => EventoPedidoVenda.Criado,
             _ => EventoPedidoVenda.Criado
         };
     }
@@ -284,40 +303,50 @@ public class PedidoVendaService(AppDbContext context)
     /// <summary>
     /// Registra um evento no histórico do PV.
     /// </summary>
-    private void RegistrarEvento(int pedidoVendaId, EventoPedidoVenda evento, string? observacao = null)
+    private void RegistrarEvento(
+        int pedidoVendaId,
+        EventoPedidoVenda evento,
+        StatusPedidoVenda? statusAnterior,
+        StatusPedidoVenda? statusNovo,
+        string? justificativa)
     {
         _context.PedidoVendaHistorico.Add(new PedidoVendaHistorico
         {
             PedidoVendaId = pedidoVendaId,
             Evento = evento,
+            StatusAnterior = statusAnterior,
+            StatusNovo = statusNovo,
+            Justificativa = justificativa,
             DataHora = DateTime.UtcNow,
-            Observacao = observacao,
             CriadoEm = DateTime.UtcNow
         });
     }
 
+    /// <summary>
+    /// Converte entidade PV + itens em DTO de resposta.
+    /// </summary>
     private static PedidoVendaResponseDTO ToResponseDTO(PedidoVenda p, List<PedidoVendaItem> itens) => new()
     {
         Id = p.Id,
         Codigo = p.Codigo,
         ClienteId = p.ClienteId,
-        ClienteNome = p.Cliente.Pessoa.Nome,
+        ClienteNome = p.Cliente?.Pessoa?.Nome ?? string.Empty,
+        Tipo = p.Tipo,
         Status = p.Status,
         Data = p.Data,
+        DataEntrega = p.DataEntrega,
         Observacoes = p.Observacoes,
-        Total = itens.Sum(i => i.Quantidade * i.PrecoUnitario),
         Itens = itens.Select(i => new PedidoVendaItemResponseDTO
         {
             Id = i.Id,
             PedidoVendaId = i.PedidoVendaId,
-            ProdutoId = i.ProdutoId,
-            ProdutoCodigo = i.Produto.Codigo,
-            ProdutoDescricao = i.Produto.Descricao,
             Quantidade = i.Quantidade,
-            PrecoUnitario = i.PrecoUnitario,
-            Subtotal = i.Quantidade * i.PrecoUnitario,
-            CriadoEm = i.CriadoEm
+            Descricao = i.Descricao,
+            Observacao = i.Observacao,
+            CriadoEm = i.CriadoEm,
+            ModificadoEm = i.ModificadoEm
         }).ToList(),
+        TotalItens = itens.Count,
         CriadoEm = p.CriadoEm,
         ModificadoEm = p.ModificadoEm
     };

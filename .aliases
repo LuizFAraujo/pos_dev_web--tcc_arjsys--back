@@ -1,0 +1,67 @@
+# ============================================================================
+#  ARJSYS - Atalhos de desenvolvimento (Git Bash / WSL / Linux / Mac)
+# ----------------------------------------------------------------------------
+#  Para ativar nesta sessão do terminal, execute na raiz do repo:
+#    source .aliases
+#
+#  Depois digite 'arj-help' para ver todos os atalhos disponíveis.
+#  Os aliases só existem enquanto a janela do terminal estiver aberta.
+# ============================================================================
+
+# ---- Ações diretas ---------------------------------------------------------
+alias arj-api='dotnet run --project app'
+alias arj-seed='dotnet run --project SeedRunner'
+alias arj-build='dotnet build'
+alias arj-mig-up='dotnet ef database update --project app'
+alias arj-publish='dotnet publish app -c Release -o ../publish --self-contained true'
+
+# ---- Resetar banco (apaga .db e aplica migrations do zero) -----------------
+# Função ao invés de alias porque precisa de lógica (if + confirmação)
+arj-reset() {
+    local banco="app/Database/ArjSysDB.db"
+    echo "ATENÇÃO: esta operação APAGA o banco $banco completamente."
+    read -r -p "Tem certeza? (s/N): " confirma
+    if [[ "$confirma" != "s" && "$confirma" != "S" ]]; then
+        echo "Operação cancelada."
+        return 1
+    fi
+    if [[ -f "$banco" ]]; then
+        rm -f "$banco"
+        echo "Banco apagado."
+    else
+        echo "Banco não existia, prosseguindo."
+    fi
+    dotnet ef database update --project app
+}
+
+# ---- Adicionar migration (recebe o nome como argumento) --------------------
+# Uso: arj-mig-add NomeDaMigration
+arj-mig-add() {
+    if [[ -z "$1" ]]; then
+        echo "Uso: arj-mig-add <NomeDaMigration>"
+        echo "Exemplo: arj-mig-add AddCampoXYZ"
+        return 1
+    fi
+    dotnet ef migrations add "$1" --project app
+}
+
+# ---- Help: lista todos os atalhos ------------------------------------------
+arj-help() {
+    echo ""
+    echo "=========================================================="
+    echo "  ARJSYS - Atalhos disponíveis"
+    echo "=========================================================="
+    echo "  arj-api              Rodar a API"
+    echo "  arj-seed             Rodar o SeedRunner (popular banco)"
+    echo "  arj-build            Build da solução"
+    echo "  arj-reset            Apaga o banco e recria via migrations"
+    echo "  arj-mig-add NOME     Adicionar nova migration"
+    echo "  arj-mig-up           Aplicar migrations pendentes"
+    echo "  arj-publish          Publish release self-contained"
+    echo "  arj-help             Mostra esta lista"
+    echo "=========================================================="
+    echo ""
+}
+
+# ---- Mensagem ao ativar ----------------------------------------------------
+echo "ARJSYS aliases ativados. Digite 'arj-help' para ver os atalhos."

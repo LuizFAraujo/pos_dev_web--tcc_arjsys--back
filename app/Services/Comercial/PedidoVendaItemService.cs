@@ -6,20 +6,38 @@ using Api_ArjSys_Tcc.DTOs.Comercial;
 
 namespace Api_ArjSys_Tcc.Services.Comercial;
 
+/// <summary>
+/// Serviço dos itens do Pedido de Venda.
+/// Itens são descrição livre (sem vínculo com Produto cadastrado).
+/// </summary>
 public class PedidoVendaItemService(AppDbContext context)
 {
     private readonly AppDbContext _context = context;
 
+    /// <summary>
+    /// Lista todos os itens de um PV.
+    /// </summary>
     public async Task<List<PedidoVendaItemResponseDTO>> GetByPedidoId(int pedidoId)
     {
         return await _context.PedidosVendaItens
             .Where(i => i.PedidoVendaId == pedidoId)
-            .Include(i => i.Produto)
             .OrderBy(i => i.Id)
-            .Select(i => ToResponseDTO(i))
+            .Select(i => new PedidoVendaItemResponseDTO
+            {
+                Id = i.Id,
+                PedidoVendaId = i.PedidoVendaId,
+                Quantidade = i.Quantidade,
+                Descricao = i.Descricao,
+                Observacao = i.Observacao,
+                CriadoEm = i.CriadoEm,
+                ModificadoEm = i.ModificadoEm
+            })
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Adiciona item ao PV. Permitido em Aguardando ou EmAndamento.
+    /// </summary>
     public async Task<(PedidoVendaItemResponseDTO? Item, string? Erro)> Create(int pedidoId, PedidoVendaItemCreateDTO dto)
     {
         var pedido = await _context.PedidosVenda.FindAsync(pedidoId);
@@ -30,36 +48,30 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
             return (null, "Só é possível adicionar itens em pedidos com status Aguardando ou Em Andamento");
 
-        var produto = await _context.Produtos.FindAsync(dto.ProdutoId);
-
-        if (produto == null)
-            return (null, "Produto não encontrado");
-
         if (dto.Quantidade <= 0)
             return (null, "Quantidade deve ser maior que zero");
 
-        var duplicado = await _context.PedidosVendaItens
-            .AnyAsync(i => i.PedidoVendaId == pedidoId && i.ProdutoId == dto.ProdutoId);
-
-        if (duplicado)
-            return (null, "Este produto já está no pedido");
+        if (string.IsNullOrWhiteSpace(dto.Descricao))
+            return (null, "Descrição do item é obrigatória");
 
         var item = new PedidoVendaItem
         {
             PedidoVendaId = pedidoId,
-            ProdutoId = dto.ProdutoId,
             Quantidade = dto.Quantidade,
-            PrecoUnitario = dto.PrecoUnitario,
+            Descricao = dto.Descricao.Trim(),
+            Observacao = string.IsNullOrWhiteSpace(dto.Observacao) ? null : dto.Observacao.Trim(),
             CriadoEm = DateTime.UtcNow
         };
 
         _context.PedidosVendaItens.Add(item);
         await _context.SaveChangesAsync();
 
-        item.Produto = produto;
         return (ToResponseDTO(item), null);
     }
 
+    /// <summary>
+    /// Atualiza item do PV. Permitido em Aguardando ou EmAndamento.
+    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int pedidoId, int id, PedidoVendaItemCreateDTO dto)
     {
         var pedido = await _context.PedidosVenda.FindAsync(pedidoId);
@@ -73,19 +85,26 @@ public class PedidoVendaItemService(AppDbContext context)
         var item = await _context.PedidosVendaItens.FirstOrDefaultAsync(i => i.Id == id && i.PedidoVendaId == pedidoId);
 
         if (item == null)
-            return (false, "Item não encontrado neste pedido");
+            return (false, null);
 
         if (dto.Quantidade <= 0)
             return (false, "Quantidade deve ser maior que zero");
 
+        if (string.IsNullOrWhiteSpace(dto.Descricao))
+            return (false, "Descrição do item é obrigatória");
+
         item.Quantidade = dto.Quantidade;
-        item.PrecoUnitario = dto.PrecoUnitario;
+        item.Descricao = dto.Descricao.Trim();
+        item.Observacao = string.IsNullOrWhiteSpace(dto.Observacao) ? null : dto.Observacao.Trim();
         item.ModificadoEm = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return (true, null);
     }
 
+    /// <summary>
+    /// Remove item do PV. Permitido em Aguardando ou EmAndamento.
+    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Delete(int pedidoId, int id)
     {
         var pedido = await _context.PedidosVenda.FindAsync(pedidoId);
@@ -99,23 +118,24 @@ public class PedidoVendaItemService(AppDbContext context)
         var item = await _context.PedidosVendaItens.FirstOrDefaultAsync(i => i.Id == id && i.PedidoVendaId == pedidoId);
 
         if (item == null)
-            return (false, "Item não encontrado neste pedido");
+            return (false, null);
 
         _context.PedidosVendaItens.Remove(item);
         await _context.SaveChangesAsync();
         return (true, null);
     }
 
+    /// <summary>
+    /// Converte entidade em DTO de resposta.
+    /// </summary>
     private static PedidoVendaItemResponseDTO ToResponseDTO(PedidoVendaItem i) => new()
     {
         Id = i.Id,
         PedidoVendaId = i.PedidoVendaId,
-        ProdutoId = i.ProdutoId,
-        ProdutoCodigo = i.Produto.Codigo,
-        ProdutoDescricao = i.Produto.Descricao,
         Quantidade = i.Quantidade,
-        PrecoUnitario = i.PrecoUnitario,
-        Subtotal = i.Quantidade * i.PrecoUnitario,
-        CriadoEm = i.CriadoEm
+        Descricao = i.Descricao,
+        Observacao = i.Observacao,
+        CriadoEm = i.CriadoEm,
+        ModificadoEm = i.ModificadoEm
     };
 }

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Comercial;
 using Api_ArjSys_Tcc.Services.Comercial;
-using Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 namespace Api_ArjSys_Tcc.Controllers.Comercial;
 
@@ -13,17 +12,17 @@ public class NumeroSerieController(NumeroSerieService service) : ControllerBase
     private readonly NumeroSerieService _service = service;
 
     /// <summary>
-    /// Listar todos os NS. Suporta paginação e filtro por tipo (?tipo=Normal ou ?tipo=VendaFutura).
+    /// Lista todos os NS com dados do PV vinculado. Suporta paginação.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<NumeroSerieResponseDTO>>> GetAll(
-        int pagina = 0,
-        int tamanho = 0,
-        [FromQuery] TipoNumeroSerie? tipo = null)
+    public async Task<ActionResult<List<NumeroSerieResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)
     {
-        return await _service.GetAll(pagina, tamanho, tipo);
+        return await _service.GetAll(pagina, tamanho);
     }
 
+    /// <summary>
+    /// Busca NS por ID com dados do PV vinculado.
+    /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<NumeroSerieResponseDTO>> GetById(int id)
     {
@@ -35,12 +34,23 @@ public class NumeroSerieController(NumeroSerieService service) : ControllerBase
         return ns;
     }
 
+    /// <summary>
+    /// Busca o NS vinculado a um PV (relação 1:1). Retorna 404 se o PV não tiver NS.
+    /// </summary>
     [HttpGet("pedido/{pedidoId:int}")]
-    public async Task<ActionResult<List<NumeroSerieResponseDTO>>> GetByPedidoId(int pedidoId)
+    public async Task<ActionResult<NumeroSerieResponseDTO>> GetByPedidoId(int pedidoId)
     {
-        return await _service.GetByPedidoId(pedidoId);
+        var ns = await _service.GetByPedidoId(pedidoId);
+
+        if (ns == null)
+            return NotFound();
+
+        return ns;
     }
 
+    /// <summary>
+    /// Cria NS vinculado a um PV. Regras: PV em Aguardando/EmAndamento, não Cancelado, sem NS prévio.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<NumeroSerieResponseDTO>> Create(NumeroSerieCreateDTO dto)
     {
@@ -52,10 +62,13 @@ public class NumeroSerieController(NumeroSerieService service) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = criado!.Id }, criado);
     }
 
-    [HttpPatch("{id:int}/status")]
-    public async Task<IActionResult> AlterarStatus(int id, StatusNumeroSerieDTO dto)
+    /// <summary>
+    /// Atualiza dados do NS (apenas campos próprios do NS — PV é readonly aqui).
+    /// </summary>
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, NumeroSerieUpdateDTO dto)
     {
-        var (sucesso, erro) = await _service.AlterarStatus(id, dto);
+        var (sucesso, erro) = await _service.Update(id, dto);
 
         if (erro != null)
             return BadRequest(new { erro });

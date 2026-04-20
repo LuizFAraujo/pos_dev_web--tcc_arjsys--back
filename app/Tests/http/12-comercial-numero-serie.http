@@ -1,8 +1,11 @@
 ### =============================================
-### COMERCIAL - NÚMERO DE SÉRIE
+### COMERCIAL - NÚMERO DE SÉRIE (v2)
+### =============================================
+### NS não tem tipo nem status próprios — herda do PV vinculado.
+### Relação 1:1 com PV.
 ### =============================================
 
-### Listar todos
+### Listar todos (com dados do PV)
 GET {{host}}/api/comercial/NumeroSerie
 Accept: application/json
 
@@ -15,34 +18,63 @@ GET {{host}}/api/comercial/NumeroSerie/1
 Accept: application/json
 
 ### Buscar inexistente → 404
-GET {{host}}/api/comercial/NumeroSerie/999
+GET {{host}}/api/comercial/NumeroSerie/9999
 Accept: application/json
 
-### Buscar por pedido (pedido id=1, deve ter 1 N.Série)
+
+### =============================================
+### NS POR PV (1:1)
+### =============================================
+
+### Buscar NS por PV — retorna objeto ou 404
 GET {{host}}/api/comercial/NumeroSerie/pedido/1
 Accept: application/json
 
-### Buscar por pedido sem N.Série (pedido id=12 Aguardando)
-GET {{host}}/api/comercial/NumeroSerie/pedido/12
+### Buscar NS de PV sem NS → 404
+GET {{host}}/api/comercial/NumeroSerie/pedido/9999
 Accept: application/json
 
-### Criar N.Série para pedido EmAndamento (ajustar ID de pedido EmAndamento)
+
+### =============================================
+### CRIAR NS (1 PV = 1 NS)
+### =============================================
+
+### Criar NS para PV EmAndamento
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 11
+  "pedidoVendaId": 11,
+  "codigoProjeto": "PRJ-2026-001"
 }
 
-### Criar N.Série para pedido Aguardando → 400
+### Criar NS para PV Aguardando (válido, ex: pré-pedido de venda futura)
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 12
+  "pedidoVendaId": 12,
+  "codigoProjeto": "PRJ-2026-002"
 }
 
-### Criar N.Série para pedido Cancelado → 400
+### Criar NS sem codigoProjeto (opcional)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 13
+}
+
+### Criar segundo NS pro mesmo PV → 400 (1:1)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 11,
+  "codigoProjeto": "PRJ-2026-DUPLICADO"
+}
+
+### Criar NS para PV Cancelado → 400
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -50,134 +82,39 @@ Content-Type: application/json
   "pedidoVendaId": 17
 }
 
-### Criar N.Série para pedido inexistente → 400
+### Criar NS para PV Concluido/Entregue → 400
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 999
+  "pedidoVendaId": 1
 }
 
-### =============================================
-### TRANSIÇÕES DE STATUS
-### =============================================
-
-### Aguardando → EmAndamento (ajustar ID)
-PATCH {{host}}/api/comercial/NumeroSerie/8/status
-Content-Type: application/json
-
-{
-  "novoStatus": "EmAndamento"
-}
-
-### EmAndamento → AguardandoEntrega (ajustar ID)
-PATCH {{host}}/api/comercial/NumeroSerie/8/status
-Content-Type: application/json
-
-{
-  "novoStatus": "AguardandoEntrega"
-}
-
-### AguardandoEntrega → Entregue (ajustar ID)
-PATCH {{host}}/api/comercial/NumeroSerie/8/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Entregue"
-}
-
-### Transição inválida: Aguardando → AguardandoEntrega → 400
-PATCH {{host}}/api/comercial/NumeroSerie/9/status
-Content-Type: application/json
-
-{
-  "novoStatus": "AguardandoEntrega"
-}
-
-### EmAndamento → Cancelado (ajustar ID)
-PATCH {{host}}/api/comercial/NumeroSerie/9/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Cancelado"
-}
-
-
-### =============================================
-### TRANSIÇÕES DE RETORNO (correção de erro)
-### =============================================
-
-### AguardandoEntrega → EmAndamento (ajustar ID)
-PATCH {{host}}/api/comercial/NumeroSerie/1/status
-Content-Type: application/json
-
-{
-  "novoStatus": "EmAndamento"
-}
-
-
-### =============================================
-### CRIAR NS COM TIPO E CÓDIGO PROJETO
-### =============================================
-
-### Criar NS tipo Normal (default) — pedido EmAndamento (ajustar ID)
+### Criar NS para PV inexistente → 400
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 6,
-  "codigoProjeto": "PRJ-2026-001"
+  "pedidoVendaId": 9999
 }
 
-### Criar NS tipo Normal com status AguardandoEntrega (ajustar ID)
-POST {{host}}/api/comercial/NumeroSerie
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 6,
-  "tipo": "Normal",
-  "status": "AguardandoEntrega",
-  "codigoProjeto": "PRJ-2026-002"
-}
-
-### Criar NS tipo VendaFutura — pedido Aguardando (ajustar ID)
-POST {{host}}/api/comercial/NumeroSerie
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 13,
-  "tipo": "VendaFutura"
-}
-
-### Criar NS Normal em pedido Aguardando → 400
-POST {{host}}/api/comercial/NumeroSerie
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 13,
-  "tipo": "Normal"
-}
-
-### Criar NS VendaFutura com status EmAndamento → 400
-POST {{host}}/api/comercial/NumeroSerie
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 12,
-  "tipo": "VendaFutura",
-  "status": "EmAndamento"
-}
 
 ### =============================================
-### FILTRAR POR TIPO
+### EDITAR NS (engenharia preenche codigoProjeto depois)
 ### =============================================
 
-### Listar só Normal
-GET {{host}}/api/comercial/NumeroSerie?tipo=Normal
-Accept: application/json
+### Atualizar codigoProjeto do NS
+PUT {{host}}/api/comercial/NumeroSerie/1
+Content-Type: application/json
 
-### Listar só VendaFutura
-GET {{host}}/api/comercial/NumeroSerie?tipo=VendaFutura
-Accept: application/json
+{
+  "codigoProjeto": "PRJ-2026-003"
+}
 
+### Limpar codigoProjeto
+PUT {{host}}/api/comercial/NumeroSerie/1
+Content-Type: application/json
 
+{
+  "codigoProjeto": null
+}

@@ -11,12 +11,18 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
 {
     private readonly PedidoVendaService _service = service;
 
+    /// <summary>
+    /// Lista todos os PVs. Suporta paginação opcional.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<PedidoVendaResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)
     {
         return await _service.GetAll(pagina, tamanho);
     }
 
+    /// <summary>
+    /// Busca PV por ID.
+    /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<PedidoVendaResponseDTO>> GetById(int id)
     {
@@ -28,6 +34,9 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
         return pedido;
     }
 
+    /// <summary>
+    /// Cria Pedido de Venda. Tipo obrigatório (Normal ou VendaFutura).
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<PedidoVendaResponseDTO>> Create(PedidoVendaCreateDTO dto)
     {
@@ -39,6 +48,9 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = criado!.Id }, criado);
     }
 
+    /// <summary>
+    /// Atualiza dados cadastrais do PV. Permitido em Aguardando ou Em Andamento.
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, PedidoVendaCreateDTO dto)
     {
@@ -53,6 +65,9 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Altera status do PV. Justificativa é obrigatória em pausar, cancelar, reabrir e retroceder.
+    /// </summary>
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> AlterarStatus(int id, StatusPedidoVendaDTO dto)
     {
@@ -67,6 +82,9 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Exclui PV. Permitido apenas em Aguardando e sem NS vinculado.
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -82,7 +100,7 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Retorna o histórico de eventos do Pedido de Venda.
+    /// Retorna o histórico de eventos do Pedido de Venda (mais recente primeiro).
     /// </summary>
     [HttpGet("{id:int}/historico")]
     public async Task<ActionResult<List<PedidoVendaHistoricoResponseDTO>>> GetHistorico(int id)

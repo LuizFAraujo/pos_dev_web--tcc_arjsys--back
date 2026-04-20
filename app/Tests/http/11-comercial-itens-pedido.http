@@ -1,78 +1,104 @@
 ### =============================================
-### COMERCIAL - ITENS DO PEDIDO
+### COMERCIAL - ITENS DO PEDIDO (v2 - descrição livre)
 ### =============================================
 
-### Listar itens do pedido 1 (Metalúrgica São José, 2 itens)
+### Listar itens de um PV
 GET {{host}}/api/comercial/PedidoVenda/1/itens
 Accept: application/json
 
-### Listar itens do pedido 2 (Usina Santa Maria, 3 itens)
-GET {{host}}/api/comercial/PedidoVenda/2/itens
+### Listar itens de PV inexistente → lista vazia
+GET {{host}}/api/comercial/PedidoVenda/9999/itens
 Accept: application/json
 
-### Listar itens pedido inexistente → lista vazia
-GET {{host}}/api/comercial/PedidoVenda/999/itens
-Accept: application/json
 
-### Adicionar item em pedido Aguardando (usar pedido id=15 que está Aguardando)
-POST {{host}}/api/comercial/PedidoVenda/15/itens
+### =============================================
+### ADICIONAR ITENS (descrição livre)
+### =============================================
+
+### Adicionar item em PV EmAndamento (ajustar ID do PV)
+POST {{host}}/api/comercial/PedidoVenda/21/itens
 Content-Type: application/json
 
 {
-  "produtoId": 17,
-  "quantidade": 2,
-  "precoUnitario": 12000.00
-}
-
-### Adicionar produto duplicado no pedido → 400
-POST {{host}}/api/comercial/PedidoVenda/15/itens
-Content-Type: application/json
-
-{
-  "produtoId": 1,
   "quantidade": 1,
-  "precoUnitario": 190000.00
+  "descricao": "Motor Trifásico 150KW",
+  "observacao": "Marca WEG"
 }
 
-### Adicionar item em pedido Entregue → 400
+### Adicionar segundo item
+POST {{host}}/api/comercial/PedidoVenda/21/itens
+Content-Type: application/json
+
+{
+  "quantidade": 2,
+  "descricao": "Redutor mecânico eixo paralelo",
+  "observacao": "Relação 1:30"
+}
+
+### Adicionar item sem observação (opcional)
+POST {{host}}/api/comercial/PedidoVenda/21/itens
+Content-Type: application/json
+
+{
+  "quantidade": 1,
+  "descricao": "Conjunto de acoplamento"
+}
+
+
+### =============================================
+### VALIDAÇÕES
+### =============================================
+
+### Quantidade zero → 400
+POST {{host}}/api/comercial/PedidoVenda/21/itens
+Content-Type: application/json
+
+{
+  "quantidade": 0,
+  "descricao": "Teste qtde zero"
+}
+
+### Descrição vazia → 400
+POST {{host}}/api/comercial/PedidoVenda/21/itens
+Content-Type: application/json
+
+{
+  "quantidade": 1,
+  "descricao": ""
+}
+
+### Adicionar item em PV Entregue → 400
 POST {{host}}/api/comercial/PedidoVenda/1/itens
 Content-Type: application/json
 
 {
-  "produtoId": 17,
   "quantidade": 1,
-  "precoUnitario": 12000.00
+  "descricao": "Não permitido"
 }
 
-### Produto inexistente → 400
-POST {{host}}/api/comercial/PedidoVenda/15/itens
+### PV inexistente → 400
+POST {{host}}/api/comercial/PedidoVenda/9999/itens
 Content-Type: application/json
 
 {
-  "produtoId": 999,
   "quantidade": 1,
-  "precoUnitario": 100.00
+  "descricao": "Teste"
 }
 
-### Quantidade zero → 400
-POST {{host}}/api/comercial/PedidoVenda/15/itens
+
+### =============================================
+### ATUALIZAR E DELETAR
+### =============================================
+
+### Atualizar item (ajustar IDs)
+PUT {{host}}/api/comercial/PedidoVenda/21/itens/1
 Content-Type: application/json
 
 {
-  "produtoId": 18,
-  "quantidade": 0,
-  "precoUnitario": 100.00
-}
-
-### Atualizar item (ajustar IDs do pedido e item)
-PUT {{host}}/api/comercial/PedidoVenda/15/itens/35
-Content-Type: application/json
-
-{
-  "produtoId": 17,
   "quantidade": 4,
-  "precoUnitario": 11500.00
+  "descricao": "Motor Trifásico 200KW",
+  "observacao": "Upgrade solicitado pelo cliente"
 }
 
 ### Deletar item (ajustar IDs)
-DELETE {{host}}/api/comercial/PedidoVenda/15/itens/35
+DELETE {{host}}/api/comercial/PedidoVenda/21/itens/1

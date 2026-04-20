@@ -2,6 +2,7 @@ namespace Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 /// <summary>
 /// Eventos registrados no histórico do Pedido de Venda.
+/// Reaberto = PV saiu do status Cancelado (reabertura com justificativa).
 /// </summary>
 public enum EventoPedidoVenda
 {
@@ -12,5 +13,6 @@ public enum EventoPedidoVenda
     Cancelado,
     Concluido,
     AguardandoEntrega,
-    Entregue
+    Entregue,
+    Reaberto
 }

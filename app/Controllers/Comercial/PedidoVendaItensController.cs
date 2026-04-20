@@ -11,12 +11,18 @@ public class PedidoVendaItensController(PedidoVendaItemService service) : Contro
 {
     private readonly PedidoVendaItemService _service = service;
 
+    /// <summary>
+    /// Lista os itens de um PV.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<PedidoVendaItemResponseDTO>>> GetByPedidoId(int pedidoId)
     {
         return await _service.GetByPedidoId(pedidoId);
     }
 
+    /// <summary>
+    /// Adiciona item ao PV. Permitido em Aguardando ou Em Andamento.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<PedidoVendaItemResponseDTO>> Create(int pedidoId, PedidoVendaItemCreateDTO dto)
     {
@@ -28,6 +34,9 @@ public class PedidoVendaItensController(PedidoVendaItemService service) : Contro
         return Ok(criado);
     }
 
+    /// <summary>
+    /// Atualiza item do PV. Permitido em Aguardando ou Em Andamento.
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int pedidoId, int id, PedidoVendaItemCreateDTO dto)
     {
@@ -42,6 +51,9 @@ public class PedidoVendaItensController(PedidoVendaItemService service) : Contro
         return NoContent();
     }
 
+    /// <summary>
+    /// Remove item do PV. Permitido em Aguardando ou Em Andamento.
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int pedidoId, int id)
     {

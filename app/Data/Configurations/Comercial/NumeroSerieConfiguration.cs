@@ -6,14 +6,18 @@ namespace Api_ArjSys_Tcc.Data.Configurations.Comercial;
 
 public class NumeroSerieConfiguration : IEntityTypeConfiguration<NumeroSerie>
 {
+    /// <summary>
+    /// Configuração EF do Número de Série.
+    /// Relação 1:1 com PV garantida por índice único em PedidoVendaId.
+    /// </summary>
     public void Configure(EntityTypeBuilder<NumeroSerie> builder)
     {
         builder.ToTable("Comercial_NumerosSerie");
 
         builder.HasIndex(n => n.Codigo).IsUnique();
+        builder.HasIndex(n => n.PedidoVendaId).IsUnique();
+
         builder.Property(n => n.Codigo).HasMaxLength(20);
-        builder.Property(n => n.Status).HasConversion<string>().HasMaxLength(30);
-        builder.Property(n => n.Tipo).HasConversion<string>().HasMaxLength(20);
         builder.Property(n => n.CodigoProjeto).HasMaxLength(50);
 
         builder.HasOne(n => n.PedidoVenda)

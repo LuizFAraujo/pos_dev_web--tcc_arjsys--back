@@ -13,6 +13,8 @@ public class PedidoVendaHistoricoResponseDTO
     public int Id { get; set; }
     public int PedidoVendaId { get; set; }
     public EventoPedidoVenda Evento { get; set; }
+    public StatusPedidoVenda? StatusAnterior { get; set; }
+    public StatusPedidoVenda? StatusNovo { get; set; }
+    public string? Justificativa { get; set; }
     public DateTime DataHora { get; set; }
-    public string? Observacao { get; set; }
 }

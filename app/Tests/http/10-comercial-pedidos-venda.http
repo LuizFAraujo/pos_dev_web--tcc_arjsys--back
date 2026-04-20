@@ -1,5 +1,5 @@
 ### =============================================
-### COMERCIAL - PEDIDOS DE VENDA
+### COMERCIAL - PEDIDOS DE VENDA (v2)
 ### =============================================
 
 ### Listar todos
@@ -15,40 +15,79 @@ GET {{host}}/api/comercial/PedidoVenda/1
 Accept: application/json
 
 ### Buscar inexistente → 404
-GET {{host}}/api/comercial/PedidoVenda/999
+GET {{host}}/api/comercial/PedidoVenda/9999
 Accept: application/json
 
-### Criar pedido (cliente id=1 Metalúrgica São José)
+
+### =============================================
+### CRIAR PV
+### =============================================
+
+### Criar PV Normal (status inicial EmAndamento)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
   "clienteId": 1,
-  "observacoes": "Pedido de teste via HTTP"
+  "tipo": "Normal",
+  "observacoes": "Venda realizada",
+  "dataEntrega": "2026-06-15"
 }
 
-### Criar pedido com cliente inexistente → 400
+### Criar PV VendaFutura (status inicial Aguardando)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
-  "clienteId": 999
+  "clienteId": 2,
+  "tipo": "VendaFutura",
+  "observacoes": "Pré-pedido — aguardando financiamento",
+  "dataEntrega": "2026-09-30"
 }
 
-### Atualizar pedido (ajustar ID, funciona se status Aguardando ou EmAndamento)
+### Criar PV com data da venda explícita (venda boca a boca, input posterior)
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "tipo": "Normal",
+  "data": "2026-04-10T08:00:00Z",
+  "observacoes": "Venda fechada no dia 10, cadastrada depois",
+  "dataEntrega": "2026-06-20"
+}
+
+### Criar PV com cliente inexistente → 400
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 9999,
+  "tipo": "Normal"
+}
+
+
+### =============================================
+### ATUALIZAR PV
+### =============================================
+
+### Atualizar PV (só em Aguardando ou EmAndamento) — ajustar ID
 PUT {{host}}/api/comercial/PedidoVenda/21
 Content-Type: application/json
 
 {
   "clienteId": 2,
-  "observacoes": "Pedido atualizado via HTTP"
+  "tipo": "Normal",
+  "observacoes": "Observação atualizada",
+  "dataEntrega": "2026-07-01"
 }
 
+
 ### =============================================
-### TRANSIÇÕES DE STATUS
+### TRANSIÇÕES DE STATUS — AVANÇO NORMAL (sem justificativa)
 ### =============================================
 
-### Aguardando → EmAndamento (ajustar ID)
+### Aguardando → EmAndamento (aprovação)
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -56,15 +95,7 @@ Content-Type: application/json
   "novoStatus": "EmAndamento"
 }
 
-### EmAndamento → Pausado (ajustar ID)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Pausado"
-}
-
-### Pausado → EmAndamento (ajustar ID)
+### Pausado → EmAndamento (retomada)
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -72,7 +103,7 @@ Content-Type: application/json
   "novoStatus": "EmAndamento"
 }
 
-### EmAndamento → Concluido (ajustar ID)
+### EmAndamento → Concluido
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -80,7 +111,7 @@ Content-Type: application/json
   "novoStatus": "Concluido"
 }
 
-### Concluido → AguardandoEntrega (ajustar ID)
+### Concluido → AguardandoEntrega
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -88,7 +119,7 @@ Content-Type: application/json
   "novoStatus": "AguardandoEntrega"
 }
 
-### AguardandoEntrega → Entregue (ajustar ID)
+### AguardandoEntrega → Entregue
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -96,15 +127,38 @@ Content-Type: application/json
   "novoStatus": "Entregue"
 }
 
-### Transição inválida: Aguardando → Concluido → 400
-PATCH {{host}}/api/comercial/PedidoVenda/15/status
+
+### =============================================
+### TRANSIÇÕES QUE EXIGEM JUSTIFICATIVA
+### =============================================
+
+### Pausar (justificativa obrigatória)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
 {
-  "novoStatus": "Concluido"
+  "novoStatus": "Pausado",
+  "justificativa": "Cliente pediu pausa por 30 dias"
 }
 
-### EmAndamento → Cancelado (ajustar ID)
+### Pausar sem justificativa → 400
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Pausado"
+}
+
+### Cancelar (justificativa obrigatória)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Cancelado",
+  "justificativa": "Cliente desistiu do financiamento"
+}
+
+### Cancelar sem justificativa → 400
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -112,17 +166,39 @@ Content-Type: application/json
   "novoStatus": "Cancelado"
 }
 
-### Deletar pedido (só funciona se Aguardando e sem N.Série, ajustar ID)
-DELETE {{host}}/api/comercial/PedidoVenda/21
-
-### Deletar pedido não-Aguardando → 400
-DELETE {{host}}/api/comercial/PedidoVenda/1
 
 ### =============================================
-### TRANSIÇÕES DE RETORNO (correção de erro)
+### RETROCESSO (justificativa obrigatória)
 ### =============================================
 
-### Concluido → EmAndamento (ajustar ID)
+### Concluido → EmAndamento (retrocesso)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento",
+  "justificativa": "Projeto teve revisão solicitada pelo cliente"
+}
+
+### AguardandoEntrega → Concluido (retrocesso)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluido",
+  "justificativa": "Detectada pendência técnica antes da expedição"
+}
+
+### AguardandoEntrega → EmAndamento (retrocesso de 2 níveis)
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento",
+  "justificativa": "Retrabalho de engenharia necessário"
+}
+
+### Retrocesso sem justificativa → 400
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
@@ -130,114 +206,66 @@ Content-Type: application/json
   "novoStatus": "EmAndamento"
 }
 
-### AguardandoEntrega → Concluido (ajustar ID)
+
+### =============================================
+### REABERTURA (Cancelado → qualquer, justificativa obrigatória)
+### =============================================
+
+### Cancelado → EmAndamento (reabertura)
 PATCH {{host}}/api/comercial/PedidoVenda/21/status
 Content-Type: application/json
 
 {
-  "novoStatus": "Concluido"
+  "novoStatus": "EmAndamento",
+  "justificativa": "Cancelamento feito por engano"
 }
 
-### AguardandoEntrega → EmAndamento (ajustar ID)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
-Content-Type: application/json
-
-{
-  "novoStatus": "EmAndamento"
-}
-
-### =============================================
-### CRIAR PV COM STATUS FLEXÍVEL
-### =============================================
-
-### Criar PV Aguardando (venda futura)
-POST {{host}}/api/comercial/PedidoVenda
-Content-Type: application/json
-
-{
-  "clienteId": 1,
-  "observacoes": "Pré-pedido - aguardando financiamento",
-  "status": "Aguardando"
-}
-
-### Criar PV EmAndamento (default, venda realizada)
-POST {{host}}/api/comercial/PedidoVenda
-Content-Type: application/json
-
-{
-  "clienteId": 2,
-  "observacoes": "Venda realizada"
-}
-
-### Criar PV com status inválido → 400
-POST {{host}}/api/comercial/PedidoVenda
-Content-Type: application/json
-
-{
-  "clienteId": 1,
-  "status": "Concluido"
-}
-
-### =============================================
-### AUTOMAÇÃO NS
-### =============================================
-
-### Passo 1: Criar PV Aguardando
-POST {{host}}/api/comercial/PedidoVenda
-Content-Type: application/json
-
-{
-  "clienteId": 3,
-  "observacoes": "Teste automação NS",
-  "status": "Aguardando"
-}
-
-### Passo 2: Criar NS VendaFutura vinculado ao PV (ajustar pedidoVendaId)
-POST {{host}}/api/comercial/NumeroSerie
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 22,
-  "tipo": "VendaFutura"
-}
-
-### Passo 3: Verificar NS está Aguardando (ajustar ID)
-GET {{host}}/api/comercial/NumeroSerie/pedido/22
-Accept: application/json
-
-### Passo 4: Aprovar PV (Aguardando → EmAndamento) — NS deve mudar automaticamente
+### Cancelado → Aguardando (reabertura)
 PATCH {{host}}/api/comercial/PedidoVenda/22/status
 Content-Type: application/json
 
 {
+  "novoStatus": "Aguardando",
+  "justificativa": "Cliente retomou interesse no pré-pedido"
+}
+
+### Reabertura sem justificativa → 400
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
   "novoStatus": "EmAndamento"
 }
 
-### Passo 5: Verificar NS agora está EmAndamento
-GET {{host}}/api/comercial/NumeroSerie/pedido/22
-Accept: application/json
+
+### =============================================
+### MESMO STATUS → 400
+### =============================================
+
+### EmAndamento → EmAndamento → 400
+PATCH {{host}}/api/comercial/PedidoVenda/21/status
+Content-Type: application/json
+
+{
+  "novoStatus": "EmAndamento"
+}
+
+
+### =============================================
+### DELETE
+### =============================================
+
+### Deletar PV (só em Aguardando e sem NS)
+DELETE {{host}}/api/comercial/PedidoVenda/21
+
+### Deletar PV EmAndamento → 400
+DELETE {{host}}/api/comercial/PedidoVenda/1
 
 
 ### =============================================
 ### HISTÓRICO DO PV
 ### =============================================
 
-### Consultar histórico de um PV (ajustar ID)
-GET {{host}}/api/comercial/PedidoVenda/27/historico
+### Consultar histórico (com statusAnterior, statusNovo, justificativa)
+GET {{host}}/api/comercial/PedidoVenda/21/historico
 Accept: application/json
-
-### Alterar status com observação (ajustar ID de PV EmAndamento)
-PATCH {{host}}/api/comercial/PedidoVenda/27/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Pausado",
-  "observacao": "Cliente pediu pausa por 30 dias"
-}
-
-### Verificar histórico após mudança
-GET {{host}}/api/comercial/PedidoVenda/22/historico
-Accept: application/json
-
-
-

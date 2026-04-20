@@ -239,22 +239,13 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.Property<int>("PedidoVendaId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Codigo")
                         .IsUnique();
 
-                    b.HasIndex("PedidoVendaId");
+                    b.HasIndex("PedidoVendaId")
+                        .IsUnique();
 
                     b.ToTable("Comercial_NumerosSerie", (string)null);
                 });
@@ -282,6 +273,9 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.Property<DateTime>("Data")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DataEntrega")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ModificadoEm")
                         .HasColumnType("TEXT");
 
@@ -295,6 +289,11 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -327,18 +326,26 @@ namespace Api_ArjSys_Tcc.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Justificativa")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ModificadoEm")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ModificadoPor")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Observacao")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("PedidoVendaId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("StatusAnterior")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StatusNovo")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -359,19 +366,22 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.Property<string>("CriadoPor")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ModificadoEm")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ModificadoPor")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("PedidoVendaId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("PrecoUnitario")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ProdutoId")
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("Quantidade")
@@ -380,8 +390,6 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PedidoVendaId");
-
-                    b.HasIndex("ProdutoId");
 
                     b.ToTable("Comercial_PedidosVendaItens", (string)null);
                 });
@@ -743,15 +751,7 @@ namespace Api_ArjSys_Tcc.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Api_ArjSys_Tcc.Models.Engenharia.Produto", "Produto")
-                        .WithMany()
-                        .HasForeignKey("ProdutoId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("PedidoVenda");
-
-                    b.Navigation("Produto");
                 });
 
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Engenharia.EstruturaProduto", b =>
