@@ -1,0 +1,26 @@
+# Ordem de execução dos SEEDs
+# Um arquivo por linha. Linhas iniciadas com # são ignoradas.
+# Os caminhos são relativos à pasta configurada em SqlFolder (seed-config.ini).
+
+# ---- Limpa o banco antes de popular ---------------------------------------
+TRUNCATE_GERAL.SQL
+
+# ---- Engenharia (ordem por dependência de FK) -----------------------------
+SEED_ENGENHARIA_01_CONFIGURACOES.SQL
+SEED_ENGENHARIA_02_GRUPOSPRODUTOS.SQL
+SEED_ENGENHARIA_03_GRUPOSVINCULOS.SQL
+SEED_ENGENHARIA_04_PATHDOCUMENTOS.SQL
+SEED_ENGENHARIA_05_PRODUTOS.SQL
+SEED_ENGENHARIA_06_ESTRUTURASPRODUTOS.SQL
+
+# ---- Admin (Pessoas -> Clientes/Funcionarios -> Permissoes) ---------------
+SEED_ADMIN_01_PESSOAS.SQL
+SEED_ADMIN_02_CLIENTES.SQL
+SEED_ADMIN_03_FUNCIONARIOS.SQL
+SEED_ADMIN_04_PERMISSOES.SQL
+
+# ---- Comercial (PVs -> Itens/NS -> Historico) -----------------------------
+SEED_COMERCIAL_01_PEDIDOSVENDA.SQL
+SEED_COMERCIAL_02_PEDIDOSVENDAITENS.SQL
+SEED_COMERCIAL_03_NUMEROSSERIE.SQL
+SEED_COMERCIAL_04_PEDIDOVENDAHISTORICO.SQL
