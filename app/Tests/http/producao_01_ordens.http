@@ -1,111 +1,76 @@
 ### =============================================
-### PRODUÇÃO - ORDENS DE PRODUÇÃO
+### PRODUÇÃO - ORDENS DE PRODUÇÃO (v3c — com integrações PV)
 ### =============================================
-### OP Master: OP.AAAA.MM.NNNN — liga PV + Produto raiz
+### OP Master: OP.AAAA.MM.NNNN — liga PV (opcional) + Produto raiz
 ### OP Filha:  OP.AAAA.MM.NNNN/NNNN — produto da BOM do Master
-### Master e Filhas têm status independentes (Pendente/Andamento/Pausada/Concluida/Cancelada)
+### Master e Filhas têm status independentes
+### Integrações automáticas:
+### - OP → Andamento: se PV em Liberado, PV auto-vai para Andamento
+### - Master → Concluida (todas): PV auto-vai para Concluido
 ### =============================================
 
 ### Listar todas
 GET {{host}}/api/producao/OrdemProducao
 Accept: application/json
 
-### Paginado
-GET {{host}}/api/producao/OrdemProducao?pagina=1&tamanho=5
-Accept: application/json
-
-### Buscar por ID (com itens + filhas se for Master)
-GET {{host}}/api/producao/OrdemProducao/1
-Accept: application/json
-
-### Buscar inexistente → 404
-GET {{host}}/api/producao/OrdemProducao/9999
-Accept: application/json
-
-### Listar OPs de um PV
-GET {{host}}/api/producao/OrdemProducao/pedido/10
+### OPs de um PV
+GET {{host}}/api/producao/OrdemProducao/pedido/12
 Accept: application/json
 
 
 ### =============================================
-### CRIAR MASTER
+### CRIAR MASTER COM PV (atende venda)
 ### =============================================
-### IDs de produtos BOM: 66=PIC-500, 67=PIC-700, 68=PIC-900, 55=ROT-001, 56=ROT-002, 57=ROT-003
 
-### Criar Master para PV 12 (Liberado) + PIC-500
+### Master PV 12 (Liberado) + PIC-500 (id=66)
 POST {{host}}/api/producao/OrdemProducao/master
 Content-Type: application/json
 
 {
   "pedidoVendaId": 12,
   "produtoId": 66,
-  "observacoes": "OP Master para o Picador PIC-500 do PV 12"
+  "observacoes": "Master PIC-500 pro PV 12"
 }
 
-### Criar Master com Produto sem BOM → 400 (Parafuso id=16 não tem filhos)
+### Master em PV que NÃO permite (PV 1 = Entregue) → 400
 POST {{host}}/api/producao/OrdemProducao/master
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 12,
-  "produtoId": 16
-}
-
-### Criar Master com Produto inexistente → 400
-POST {{host}}/api/producao/OrdemProducao/master
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 12,
-  "produtoId": 9999
-}
-
-### Criar Master com PV inexistente → 400
-POST {{host}}/api/producao/OrdemProducao/master
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 9999,
+  "pedidoVendaId": 1,
   "produtoId": 66
 }
 
+### Master em PV 9 Pausado (permitido)
+POST {{host}}/api/producao/OrdemProducao/master
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 9,
+  "produtoId": 67,
+  "observacoes": "Mesmo PV pausado pode receber OP pra adiantar"
+}
+
 
 ### =============================================
-### CRIAR FILHA (em cima de uma Master)
+### CRIAR MASTER SEM PV (produção pra estoque)
 ### =============================================
-### Substitua o {opMasterId} pelo ID da Master recém criada
 
-### Filha para o Rotor (ROT-001, id=55) — está na BOM do PIC-500
-POST {{host}}/api/producao/OrdemProducao/filha
+### Master independente (sem PV) — OP de estoque
+POST {{host}}/api/producao/OrdemProducao/master
 Content-Type: application/json
 
 {
-  "ordemPaiId": 1,
-  "produtoId": 55,
-  "observacoes": "Filha — Rotor do PIC-500"
+  "produtoId": 66,
+  "observacoes": "Produzindo PIC-500 pro estoque"
 }
 
-### Filha para o Motor (MTR-001, id=31) — está na BOM do PIC-500
-POST {{host}}/api/producao/OrdemProducao/filha
-Content-Type: application/json
 
-{
-  "ordemPaiId": 1,
-  "produtoId": 31,
-  "observacoes": "Filha — Motor 50CV"
-}
+### =============================================
+### FILHAS (em cima de uma Master — ajustar IDs)
+### =============================================
 
-### Filha para o Parafuso (PRF-001, id=16) — está na BOM do PIC-500 (qtd=8)
-POST {{host}}/api/producao/OrdemProducao/filha
-Content-Type: application/json
-
-{
-  "ordemPaiId": 1,
-  "produtoId": 16,
-  "observacoes": "Filha — Parafusos de fixação"
-}
-
-### Filha duplicada → 400 (Rotor já criado em Filha anterior)
+### Filha Rotor (id=55) — BOM do PIC-500
 POST {{host}}/api/producao/OrdemProducao/filha
 Content-Type: application/json
 
@@ -114,30 +79,34 @@ Content-Type: application/json
   "produtoId": 55
 }
 
-### Filha com Produto fora da BOM do Master → 400
+### Filha Motor (id=31)
 POST {{host}}/api/producao/OrdemProducao/filha
 Content-Type: application/json
 
 {
   "ordemPaiId": 1,
-  "produtoId": 70
+  "produtoId": 31
 }
 
-### Filha de Filha → 400 (não pode sub-filha)
+### Filha Parafusos (id=16, qtd=8 na BOM do PIC-500)
 POST {{host}}/api/producao/OrdemProducao/filha
 Content-Type: application/json
 
 {
-  "ordemPaiId": 2,
-  "produtoId": 40
+  "ordemPaiId": 1,
+  "produtoId": 16
 }
 
 
 ### =============================================
-### STATUS DA OP
+### INTEGRAÇÃO — OP → PV AUTOMÁTICO
 ### =============================================
 
-### Pendente → Andamento (iniciar produção)
+### ANTES: ver status do PV 12 (deve estar Liberado)
+GET {{host}}/api/comercial/PedidoVenda/12
+
+### Iniciar Filha Rotor (id=2): Pendente → Andamento
+### EFEITO AUTOMÁTICO: PV 12 vai de Liberado → Andamento + evento no histórico
 PATCH {{host}}/api/producao/OrdemProducao/2/status
 Content-Type: application/json
 
@@ -145,155 +114,149 @@ Content-Type: application/json
   "novoStatus": "Andamento"
 }
 
-### Andamento → Pausada (justificativa obrigatória)
-PATCH {{host}}/api/producao/OrdemProducao/2/status
-Content-Type: application/json
+### DEPOIS: ver PV 12 (agora em Andamento) + histórico
+GET {{host}}/api/comercial/PedidoVenda/12
+GET {{host}}/api/comercial/PedidoVenda/12/historico
 
-{
-  "novoStatus": "Pausada",
-  "justificativa": "Aguardando chegada de matéria-prima"
-}
-
-### Pausada sem justificativa → 400
-PATCH {{host}}/api/producao/OrdemProducao/2/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Pausada"
-}
-
-### Pausada → Andamento (retomar, sem justificativa)
-PATCH {{host}}/api/producao/OrdemProducao/2/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Andamento"
-}
-
-### Andamento → Concluida (manual, não precisa justificativa)
-PATCH {{host}}/api/producao/OrdemProducao/2/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Concluida"
-}
-
-### Tentar sair de Concluida → 400 (terminal)
-PATCH {{host}}/api/producao/OrdemProducao/2/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Andamento"
-}
-
-### Cancelar com justificativa (a partir de Pendente ou Andamento)
-PATCH {{host}}/api/producao/OrdemProducao/3/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Cancelada",
-  "justificativa": "PV cancelado pelo cliente"
-}
-
-### Transição inválida: Pendente → Concluida (pulou Andamento) → 400
-PATCH {{host}}/api/producao/OrdemProducao/4/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Concluida"
-}
+### Ver notificações do módulo Producao (deve ter 'OP criada' e possivelmente 'PV Liberado')
+GET {{host}}/api/admin/Notificacoes?modulo=Producao
+GET {{host}}/api/admin/Notificacoes?modulo=Almoxarifado
 
 
 ### =============================================
-### APONTAMENTO DE PRODUÇÃO
+### APONTAMENTO + AUTO-CONCLUSÃO DA FILHA
 ### =============================================
 
-### Apontar 4 un em item (ajustar opId e itemId)
+### Apontar Rotor (qtd=1, completa)
+### EFEITO: Filha auto-conclui → notifica Producao
 PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
-Content-Type: application/json
-
-{
-  "quantidade": 4,
-  "observacao": "Primeiro lote parcial"
-}
-
-### Apontar o restante (completa — deve auto-concluir a OP)
-PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
-Content-Type: application/json
-
-{
-  "quantidade": 4
-}
-
-### Apontar ultrapassando o planejado → 400
-PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
-Content-Type: application/json
-
-{
-  "quantidade": 100
-}
-
-### Apontar quantidade zero → 400
-PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
-Content-Type: application/json
-
-{
-  "quantidade": 0
-}
-
-### Apontar em OP não-Andamento → 400
-PATCH {{host}}/api/producao/OrdemProducao/1/itens/1/apontar
 Content-Type: application/json
 
 {
   "quantidade": 1
 }
 
+### Iniciar e concluir Filha Motor
+PATCH {{host}}/api/producao/OrdemProducao/3/status
+Content-Type: application/json
 
-### =============================================
-### STATUS DE PRODUÇÃO (consolidado com %)
-### =============================================
+{ "novoStatus": "Andamento" }
 
-### Status detalhado da OP
-GET {{host}}/api/producao/OrdemProducao/2/status-producao
-Accept: application/json
+PATCH {{host}}/api/producao/OrdemProducao/3/itens/2/apontar
+Content-Type: application/json
 
+{ "quantidade": 1 }
 
-### =============================================
-### DIVERGÊNCIA OP × BOM ATUAL
-### =============================================
+### Iniciar e concluir Filha Parafusos
+PATCH {{host}}/api/producao/OrdemProducao/4/status
+Content-Type: application/json
 
-### Ver diferenças entre OP (snapshot) e BOM atual
-GET {{host}}/api/producao/OrdemProducao/2/divergencia-bom
-Accept: application/json
+{ "novoStatus": "Andamento" }
 
+PATCH {{host}}/api/producao/OrdemProducao/4/itens/3/apontar
+Content-Type: application/json
 
-### =============================================
-### HISTÓRICO
-### =============================================
-
-### Eventos da OP
-GET {{host}}/api/producao/OrdemProducao/2/historico
-Accept: application/json
+{ "quantidade": 8 }
 
 
 ### =============================================
-### EDITAR / EXCLUIR
+### INTEGRAÇÃO — MASTER CONCLUIDA → PV CONCLUIDO
 ### =============================================
 
-### Editar observações
-PUT {{host}}/api/producao/OrdemProducao/2
+### Concluir manualmente a Master (id=1)
+### EFEITO: como é a única Master do PV 12 e vai para Concluida,
+### PV 12 auto-vai de Andamento → Concluido + notifica Comercial
+PATCH {{host}}/api/producao/OrdemProducao/1/status
 Content-Type: application/json
 
 {
-  "observacoes": "Observação atualizada"
+  "novoStatus": "Concluida"
 }
 
-### Excluir Filha Pendente (sem apontamentos)
-DELETE {{host}}/api/producao/OrdemProducao/4
+### DEPOIS: PV 12 deve estar Concluido
+GET {{host}}/api/comercial/PedidoVenda/12
+GET {{host}}/api/comercial/PedidoVenda/12/historico
 
-### Excluir Master com filha em Andamento → 400
-DELETE {{host}}/api/producao/OrdemProducao/1
+### Comercial deve ter notificação "PV pronto pra expedição"
+GET {{host}}/api/admin/Notificacoes?modulo=Comercial
 
-### Excluir OP em Andamento → 400
-DELETE {{host}}/api/producao/OrdemProducao/2
+
+### =============================================
+### BLOQUEIO DE ENTREGA SE OP ATIVA
+### =============================================
+
+### Usar PV 9 (Pausado) — criou-se uma Master pra ele acima (id=?)
+### Mover PV 9 de Pausado → Andamento e tentar Entregue direto
+
+### Vamos usar outro exemplo limpo: criar PV e Master, tentar entregar antes de concluir
+### Criar um PV Normal novo (vai nascer em Liberado)
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "tipo": "Normal",
+  "observacoes": "Teste bloqueio entrega"
+}
+
+### Criar Master pra esse PV (ajustar IDs)
+POST {{host}}/api/producao/OrdemProducao/master
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 16,
+  "produtoId": 66
+}
+
+### Forçar o PV pra AEntregar via fluxo manual: Liberado → Andamento → Concluido → AEntregar
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+{ "novoStatus": "Andamento" }
+
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+{ "novoStatus": "Concluido" }
+
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+{ "novoStatus": "AEntregar" }
+
+### Tentar ir pra Entregue com Master ainda Pendente → 400
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+{ "novoStatus": "Entregue" }
+
+### Concluir ou Cancelar a Master (ajustar id) e tentar de novo
+PATCH {{host}}/api/producao/OrdemProducao/6/status
+Content-Type: application/json
+{ "novoStatus": "Cancelada", "justificativa": "Teste" }
+
+### Agora Entregue passa
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+{ "novoStatus": "Entregue" }
+
+
+### =============================================
+### CANCELAMENTO DE PV COM OPs ATIVAS → NOTIFICA
+### =============================================
+
+### Cancelar o PV 11 (Andamento com OPs hipotéticas)
+PATCH {{host}}/api/comercial/PedidoVenda/11/status
+Content-Type: application/json
+{
+  "novoStatus": "Cancelado",
+  "justificativa": "Cliente desistiu"
+}
+
+### Ver notificações — deve ter "PV X cancelado — há OPs ativas" se tiver OP ativa
+GET {{host}}/api/admin/Notificacoes?modulo=Producao
+
+
+### =============================================
+### HISTÓRICO E STATUS DE PRODUÇÃO
+### =============================================
+
+GET {{host}}/api/producao/OrdemProducao/1/historico
+GET {{host}}/api/producao/OrdemProducao/1/status-producao
+GET {{host}}/api/producao/OrdemProducao/1/divergencia-bom

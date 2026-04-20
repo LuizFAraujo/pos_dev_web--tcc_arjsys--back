@@ -8,7 +8,7 @@ public class OrdemProducaoConfiguration : IEntityTypeConfiguration<OrdemProducao
 {
     /// <summary>
     /// Configuração EF da Ordem de Produção.
-    /// Auto-relação para hierarquia Master → Filhas.
+    /// PedidoVendaId é opcional (null = OP de estoque).
     /// </summary>
     public void Configure(EntityTypeBuilder<OrdemProducao> builder)
     {
@@ -19,9 +19,11 @@ public class OrdemProducaoConfiguration : IEntityTypeConfiguration<OrdemProducao
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(o => o.Observacoes).HasMaxLength(500);
 
+        // PV opcional — OP de estoque tem PedidoVendaId null
         builder.HasOne(o => o.PedidoVenda)
                .WithMany()
                .HasForeignKey(o => o.PedidoVendaId)
+               .IsRequired(false)
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(o => o.Produto)
@@ -29,7 +31,6 @@ public class OrdemProducaoConfiguration : IEntityTypeConfiguration<OrdemProducao
                .HasForeignKey(o => o.ProdutoId)
                .OnDelete(DeleteBehavior.Restrict);
 
-        // Auto-relação Master/Filha — deletar Master apaga as filhas em cascata
         builder.HasOne(o => o.OrdemPai)
                .WithMany()
                .HasForeignKey(o => o.OrdemPaiId)

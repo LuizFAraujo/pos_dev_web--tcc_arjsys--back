@@ -1,33 +1,37 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Models.Admin.Enums;
+using Api_ArjSys_Tcc.Models.Comercial.Enums;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.Models.Producao;
 using Api_ArjSys_Tcc.Models.Producao.Enums;
+using Api_ArjSys_Tcc.DTOs.Admin;
 using Api_ArjSys_Tcc.DTOs.Producao;
+using Api_ArjSys_Tcc.Services.Admin;
 
 namespace Api_ArjSys_Tcc.Services.Producao;
 
 /// <summary>
 /// Serviço de Ordem de Produção.
-/// Gerencia CRUD, hierarquia Master/Filha, transições de status,
-/// apontamentos de produção e divergências com BOM.
-/// Master e Filhas têm status independentes.
+/// Integração automática com PV:
+/// - Criar Master só em PV Liberado/Andamento/Pausado (ou sem PV, para estoque);
+/// - Primeira OP (Master ou Filha) em Andamento → PV vai para Andamento (se Liberado);
+/// - Todas as OPs Master do PV Concluidas → PV auto-vai para Concluido (se Andamento).
+/// Notificações automáticas disparadas via NotificacaoService.
 /// </summary>
-public class OrdemProducaoService(AppDbContext context)
+public class OrdemProducaoService(AppDbContext context, NotificacaoService notificacoes)
 {
     private readonly AppDbContext _context = context;
+    private readonly NotificacaoService _notificacoes = notificacoes;
 
     // ========================================================================
     // LISTAGEM
     // ========================================================================
 
-    /// <summary>
-    /// Lista todas as OPs. Suporta paginação.
-    /// </summary>
     public async Task<List<OrdemProducaoResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
     {
         var query = _context.OrdensProducao
-            .Include(o => o.PedidoVenda).ThenInclude(p => p.Cliente).ThenInclude(c => c.Pessoa)
+            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
             .Include(o => o.Produto)
             .Include(o => o.OrdemPai)
             .OrderByDescending(o => o.CriadoEm);
@@ -46,13 +50,10 @@ public class OrdemProducaoService(AppDbContext context)
         return resultado;
     }
 
-    /// <summary>
-    /// Busca OP por ID, com itens e filhas.
-    /// </summary>
     public async Task<OrdemProducaoResponseDTO?> GetById(int id)
     {
         var op = await _context.OrdensProducao
-            .Include(o => o.PedidoVenda).ThenInclude(p => p.Cliente).ThenInclude(c => c.Pessoa)
+            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
             .Include(o => o.Produto)
             .Include(o => o.OrdemPai)
             .FirstOrDefaultAsync(o => o.Id == id);
@@ -60,13 +61,10 @@ public class OrdemProducaoService(AppDbContext context)
         return op == null ? null : await ToResponseDTO(op);
     }
 
-    /// <summary>
-    /// Lista OPs de um Pedido de Venda (Master + Filhas).
-    /// </summary>
     public async Task<List<OrdemProducaoResponseDTO>> GetByPedidoVenda(int pedidoVendaId)
     {
         var lista = await _context.OrdensProducao
-            .Include(o => o.PedidoVenda).ThenInclude(p => p.Cliente).ThenInclude(c => c.Pessoa)
+            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
             .Include(o => o.Produto)
             .Include(o => o.OrdemPai)
             .Where(o => o.PedidoVendaId == pedidoVendaId)
@@ -85,14 +83,20 @@ public class OrdemProducaoService(AppDbContext context)
     // ========================================================================
 
     /// <summary>
-    /// Cria OP Master. Liga ao PV + Produto raiz.
-    /// Produto deve ter BOM (ser pai em EstruturasProdutos).
+    /// Cria OP Master. Pode ser com PV (atende venda) ou sem PV (estoque).
+    /// Se PV informado, deve estar em Liberado, Andamento ou Pausado.
     /// </summary>
     public async Task<(OrdemProducaoResponseDTO? Item, string? Erro)> CriarMaster(OrdemProducaoMasterCreateDTO dto)
     {
-        var pv = await _context.PedidosVenda.FindAsync(dto.PedidoVendaId);
-        if (pv == null)
-            return (null, "Pedido de Venda não encontrado");
+        if (dto.PedidoVendaId.HasValue)
+        {
+            var pv = await _context.PedidosVenda.FindAsync(dto.PedidoVendaId.Value);
+            if (pv == null)
+                return (null, "Pedido de Venda não encontrado");
+
+            if (!StatusPvPermiteCriarOp(pv.Status))
+                return (null, $"PV deve estar em Liberado, Andamento ou Pausado para receber OPs (atual: {pv.Status})");
+        }
 
         var produto = await _context.Produtos.FindAsync(dto.ProdutoId);
         if (produto == null)
@@ -125,6 +129,9 @@ public class OrdemProducaoService(AppDbContext context)
         RegistrarEvento(op.Id, EventoOrdemProducao.Criada, null, StatusOrdemProducao.Pendente, null, null);
         await _context.SaveChangesAsync();
 
+        // Notificação: Almoxarifado deve reservar material
+        await NotificarAlmoxarifadoOpCriada(op, produto);
+
         return await GetById(op.Id) is { } response
             ? (response, null)
             : (null, "Erro ao carregar OP criada");
@@ -134,14 +141,6 @@ public class OrdemProducaoService(AppDbContext context)
     // CRIAÇÃO — FILHA
     // ========================================================================
 
-    /// <summary>
-    /// Cria OP Filha vinculada a uma Master.
-    /// Regras:
-    /// - Master deve existir;
-    /// - Produto deve existir na BOM explodida da Master;
-    /// - Mesmo Produto não pode já ter OP Filha ativa nessa Master;
-    /// - QuantidadePlanejada do item é snapshot da BOM.
-    /// </summary>
     public async Task<(OrdemProducaoResponseDTO? Item, string? Erro)> CriarFilha(OrdemProducaoFilhaCreateDTO dto)
     {
         var master = await _context.OrdensProducao.FindAsync(dto.OrdemPaiId);
@@ -158,12 +157,10 @@ public class OrdemProducaoService(AppDbContext context)
         if (produto == null)
             return (null, "Produto não encontrado");
 
-        // Valida que o Produto existe na BOM explodida da Master
         var explosao = await ExplodirBom(master.ProdutoId);
         if (!explosao.TryGetValue(dto.ProdutoId, out var qtdNaBom))
             return (null, $"Produto não faz parte da BOM do produto raiz da Master ({master.ProdutoId})");
 
-        // Verifica se já existe filha ativa pra esse Produto na mesma Master
         var jaExiste = await _context.OrdensProducao
             .AnyAsync(o => o.OrdemPaiId == master.Id
                         && o.ProdutoId == dto.ProdutoId
@@ -189,7 +186,6 @@ public class OrdemProducaoService(AppDbContext context)
         _context.OrdensProducao.Add(op);
         await _context.SaveChangesAsync();
 
-        // Cria o item principal (snapshot da BOM)
         var item = new OrdemProducaoItem
         {
             OrdemProducaoId = op.Id,
@@ -212,9 +208,6 @@ public class OrdemProducaoService(AppDbContext context)
     // EDIÇÃO / EXCLUSÃO
     // ========================================================================
 
-    /// <summary>
-    /// Atualiza observações da OP. Permitido em qualquer status exceto Concluida e Cancelada.
-    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, OrdemProducaoUpdateDTO dto)
     {
         var op = await _context.OrdensProducao.FindAsync(id);
@@ -231,10 +224,6 @@ public class OrdemProducaoService(AppDbContext context)
         return (true, null);
     }
 
-    /// <summary>
-    /// Exclui OP. Permitido apenas em Pendente, sem produção apontada.
-    /// Se for Master, apaga filhas em cascata (Pendentes).
-    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Delete(int id)
     {
         var op = await _context.OrdensProducao.FindAsync(id);
@@ -249,7 +238,6 @@ public class OrdemProducaoService(AppDbContext context)
         if (temApontamento)
             return (false, "Não é possível excluir OP com produção já apontada");
 
-        // Se é Master, verifica filhas
         if (op.OrdemPaiId == null)
         {
             var filhasNaoPendentes = await _context.OrdensProducao
@@ -268,16 +256,15 @@ public class OrdemProducaoService(AppDbContext context)
     // ========================================================================
 
     /// <summary>
-    /// Altera status da OP. Regras:
-    /// - Concluida e Cancelada são terminais;
-    /// - Pausada/Cancelada exigem justificativa;
-    /// - Pendente → Andamento, Andamento → Pausada/Concluida/Cancelada, Pausada → Andamento/Cancelada.
-    /// Ao passar para Andamento, registra DataInicio.
-    /// Ao passar para Concluida ou Cancelada, registra DataFim.
+    /// Altera status da OP com validações + integração com PV:
+    /// - Ao entrar em Andamento: se PV estiver em Liberado, move PV para Andamento automaticamente.
+    /// - Ao concluir Master: verifica se todas as Masters do PV estão concluidas; se sim, PV → Concluido.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> AlterarStatus(int id, OrdemProducaoStatusDTO dto)
     {
-        var op = await _context.OrdensProducao.FindAsync(id);
+        var op = await _context.OrdensProducao
+            .Include(o => o.Produto)
+            .FirstOrDefaultAsync(o => o.Id == id);
         if (op == null)
             return (false, null);
 
@@ -310,21 +297,21 @@ public class OrdemProducaoService(AppDbContext context)
         RegistrarEvento(id, evento, anterior, novo, justificativa, null);
 
         await _context.SaveChangesAsync();
+
+        // Integrações com PV
+        await IntegrarPvAposMudancaStatusOp(op, anterior, novo);
+
+        // Notificações
+        if (novo == StatusOrdemProducao.Concluida)
+            await NotificarProducaoOpConcluida(op);
+
         return (true, null);
     }
 
     // ========================================================================
-    // APONTAMENTO DE PRODUÇÃO
+    // APONTAMENTO
     // ========================================================================
 
-    /// <summary>
-    /// Aponta produção num item da OP. Soma na QuantidadeProduzida.
-    /// Rejeita se:
-    /// - OP não está em Andamento;
-    /// - Quantidade &lt;= 0;
-    /// - Ultrapassa QuantidadePlanejada.
-    /// Se todos os itens ficam com Produzida == Planejada, OP vai auto para Concluida.
-    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Apontar(int opId, int itemId, OrdemProducaoApontamentoDTO dto)
     {
         var op = await _context.OrdensProducao.FindAsync(opId);
@@ -355,7 +342,7 @@ public class OrdemProducaoService(AppDbContext context)
 
         await _context.SaveChangesAsync();
 
-        // Auto-conclusão: todos os itens com Produzida == Planejada
+        // Auto-conclusão
         var itens = await _context.OrdensProducaoItens
             .Where(i => i.OrdemProducaoId == opId)
             .ToListAsync();
@@ -368,18 +355,18 @@ public class OrdemProducaoService(AppDbContext context)
             RegistrarEvento(opId, EventoOrdemProducao.Concluida, StatusOrdemProducao.Andamento,
                 StatusOrdemProducao.Concluida, "Auto-concluída: todos os itens atingiram o planejado", null);
             await _context.SaveChangesAsync();
+
+            await IntegrarPvAposMudancaStatusOp(op, StatusOrdemProducao.Andamento, StatusOrdemProducao.Concluida);
+            await NotificarProducaoOpConcluida(op);
         }
 
         return (true, null);
     }
 
     // ========================================================================
-    // STATUS DE PRODUÇÃO (percentual)
+    // STATUS DE PRODUÇÃO E DIVERGÊNCIA
     // ========================================================================
 
-    /// <summary>
-    /// Retorna o status de produção consolidado da OP (cada item com planejada/produzida/percentual).
-    /// </summary>
     public async Task<OrdemProducaoStatusProducaoDTO?> GetStatusProducao(int id)
     {
         var op = await _context.OrdensProducao.FindAsync(id);
@@ -411,15 +398,6 @@ public class OrdemProducaoService(AppDbContext context)
         };
     }
 
-    // ========================================================================
-    // DIVERGÊNCIA OP × BOM
-    // ========================================================================
-
-    /// <summary>
-    /// Compara os itens da OP (snapshot) com a BOM atual do Produto raiz.
-    /// Retorna diferenças (BOM mudou desde a criação da OP).
-    /// Usado principalmente em OPs Master; nas Filhas a comparação é direta com a quantidade da BOM.
-    /// </summary>
     public async Task<OrdemProducaoDivergenciaDTO?> GetDivergencia(int id)
     {
         var op = await _context.OrdensProducao
@@ -429,7 +407,6 @@ public class OrdemProducaoService(AppDbContext context)
         if (op == null)
             return null;
 
-        // Para filha: compara com BOM do Produto raiz da Master
         var produtoRaizId = op.OrdemPaiId == null
             ? op.ProdutoId
             : (await _context.OrdensProducao.Where(m => m.Id == op.OrdemPaiId).Select(m => m.ProdutoId).FirstAsync());
@@ -474,10 +451,6 @@ public class OrdemProducaoService(AppDbContext context)
         };
     }
 
-    // ========================================================================
-    // HISTÓRICO
-    // ========================================================================
-
     public async Task<List<OrdemProducaoHistoricoResponseDTO>> GetHistorico(int opId)
     {
         return await _context.OrdensProducaoHistorico
@@ -498,8 +471,144 @@ public class OrdemProducaoService(AppDbContext context)
     }
 
     // ========================================================================
-    // PRIVATES
+    // INTEGRAÇÃO COM PV (automática)
     // ========================================================================
+
+    /// <summary>
+    /// Após mudança de status da OP, avalia e aplica transições automáticas no PV.
+    /// - OP → Andamento: se PV em Liberado, move para Andamento.
+    /// - Master → Concluida: se TODAS as Masters do PV estão Concluida/Cancelada e pelo menos 1 Concluida,
+    ///   move PV para Concluido (se estiver em Andamento).
+    /// </summary>
+    private async Task IntegrarPvAposMudancaStatusOp(
+        OrdemProducao op,
+        StatusOrdemProducao anterior,
+        StatusOrdemProducao novo)
+    {
+        if (!op.PedidoVendaId.HasValue) return;
+
+        var pv = await _context.PedidosVenda.FindAsync(op.PedidoVendaId.Value);
+        if (pv == null) return;
+
+        // 1) OP entra em Andamento → PV vai de Liberado para Andamento
+        if (novo == StatusOrdemProducao.Andamento
+            && anterior != StatusOrdemProducao.Andamento
+            && pv.Status == StatusPedidoVenda.Liberado)
+        {
+            pv.Status = StatusPedidoVenda.Andamento;
+            pv.ModificadoEm = DateTime.UtcNow;
+            _context.PedidoVendaHistorico.Add(new Api_ArjSys_Tcc.Models.Comercial.PedidoVendaHistorico
+            {
+                PedidoVendaId = pv.Id,
+                Evento = EventoPedidoVenda.ProducaoIniciada,
+                StatusAnterior = StatusPedidoVenda.Liberado,
+                StatusNovo = StatusPedidoVenda.Andamento,
+                Justificativa = $"Transição automática: OP {op.Codigo} iniciada",
+                DataHora = DateTime.UtcNow,
+                CriadoEm = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+        }
+
+        // 2) Master concluida → se todas as Masters do PV estão Concluida/Cancelada, PV vai para Concluido
+        if (op.OrdemPaiId == null && novo == StatusOrdemProducao.Concluida)
+        {
+            var mastersDoPv = await _context.OrdensProducao
+                .Where(o => o.PedidoVendaId == pv.Id && o.OrdemPaiId == null)
+                .ToListAsync();
+
+            bool temAlgumaConcluida = mastersDoPv.Any(m => m.Status == StatusOrdemProducao.Concluida);
+            bool todasFechadas = mastersDoPv.All(m =>
+                m.Status == StatusOrdemProducao.Concluida || m.Status == StatusOrdemProducao.Cancelada);
+
+            if (temAlgumaConcluida && todasFechadas && pv.Status == StatusPedidoVenda.Andamento)
+            {
+                pv.Status = StatusPedidoVenda.Concluido;
+                pv.ModificadoEm = DateTime.UtcNow;
+                _context.PedidoVendaHistorico.Add(new Api_ArjSys_Tcc.Models.Comercial.PedidoVendaHistorico
+                {
+                    PedidoVendaId = pv.Id,
+                    Evento = EventoPedidoVenda.ProducaoConcluida,
+                    StatusAnterior = StatusPedidoVenda.Andamento,
+                    StatusNovo = StatusPedidoVenda.Concluido,
+                    Justificativa = "Transição automática: todas as OPs Master finalizadas",
+                    DataHora = DateTime.UtcNow,
+                    CriadoEm = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+
+                await NotificarComercialPvProntoExpedicao(pv);
+            }
+        }
+    }
+
+    // ========================================================================
+    // NOTIFICAÇÕES AUTOMÁTICAS
+    // ========================================================================
+
+    private async Task NotificarAlmoxarifadoOpCriada(OrdemProducao op, Produto produto)
+    {
+        var pvCodigo = op.PedidoVendaId.HasValue
+            ? await _context.PedidosVenda.Where(p => p.Id == op.PedidoVendaId.Value).Select(p => p.Codigo).FirstOrDefaultAsync()
+            : null;
+
+        var titulo = op.PedidoVendaId.HasValue
+            ? $"OP {op.Codigo} criada (PV {pvCodigo})"
+            : $"OP {op.Codigo} criada (estoque)";
+
+        var mensagem = $"Reservar material para produção de {produto.Codigo} - {produto.Descricao}";
+
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Almoxarifado,
+            Tipo = TipoNotificacao.Info,
+            Titulo = titulo,
+            Mensagem = mensagem,
+            OrigemTabela = "Producao_OrdensProducao",
+            OrigemId = op.Id
+        });
+    }
+
+    private async Task NotificarProducaoOpConcluida(OrdemProducao op)
+    {
+        var produto = await _context.Produtos.FindAsync(op.ProdutoId);
+        var tipo = op.OrdemPaiId == null ? "Master" : "Filha";
+
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Producao,
+            Tipo = TipoNotificacao.Sucesso,
+            Titulo = $"OP {tipo} {op.Codigo} concluída",
+            Mensagem = $"Produção de {produto?.Codigo ?? "?"} finalizada.",
+            OrigemTabela = "Producao_OrdensProducao",
+            OrigemId = op.Id
+        });
+    }
+
+    private async Task NotificarComercialPvProntoExpedicao(Api_ArjSys_Tcc.Models.Comercial.PedidoVenda pv)
+    {
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Comercial,
+            Tipo = TipoNotificacao.Sucesso,
+            Titulo = $"PV {pv.Codigo} pronto para expedição",
+            Mensagem = "Todas as OPs Master foram concluídas. Liberar para AEntregar.",
+            OrigemTabela = "Comercial_PedidosVenda",
+            OrigemId = pv.Id
+        });
+    }
+
+    // ========================================================================
+    // PRIVATES (transições, código, BOM, conversores)
+    // ========================================================================
+
+    private static bool StatusPvPermiteCriarOp(StatusPedidoVenda status) => status switch
+    {
+        StatusPedidoVenda.Liberado  => true,
+        StatusPedidoVenda.Andamento => true,
+        StatusPedidoVenda.Pausado   => true,
+        _ => false
+    };
 
     private static (bool Valida, string? Erro) TransicaoPermitida(StatusOrdemProducao atual, StatusOrdemProducao novo)
     {
@@ -589,10 +698,6 @@ public class OrdemProducaoService(AppDbContext context)
         });
     }
 
-    /// <summary>
-    /// Explode a BOM de um produto em memória, consolidando quantidades.
-    /// Retorna Dictionary &lt;ProdutoFilhoId, QuantidadeTotal&gt;.
-    /// </summary>
     private async Task<Dictionary<int, decimal>> ExplodirBom(int produtoPaiId)
     {
         var todasEstruturas = await _context.EstruturasProdutos.ToListAsync();
@@ -633,7 +738,6 @@ public class OrdemProducaoService(AppDbContext context)
             }
             else
             {
-                // Intermediário também conta (pode virar OP Filha)
                 consolidado[filho.ProdutoFilhoId] =
                     consolidado.TryGetValue(filho.ProdutoFilhoId, out var atual) ? atual + qtd : qtd;
                 Descer(filho.ProdutoFilhoId, qtd, estruturasPorPai, consolidado, visitados);
@@ -643,10 +747,6 @@ public class OrdemProducaoService(AppDbContext context)
         visitados.Remove(produtoId);
     }
 
-    // ========================================================================
-    // CONVERSORES
-    // ========================================================================
-
     private async Task<OrdemProducaoResponseDTO> ToResponseDTO(OrdemProducao op)
     {
         var itens = await _context.OrdensProducaoItens
@@ -655,7 +755,6 @@ public class OrdemProducaoService(AppDbContext context)
             .OrderBy(i => i.Produto.Codigo)
             .ToListAsync();
 
-        // Se é Master, carrega resumo das filhas
         var filhas = new List<OrdemProducaoFilhaResumoDTO>();
         if (op.OrdemPaiId == null)
         {
@@ -693,8 +792,8 @@ public class OrdemProducaoService(AppDbContext context)
             Id = op.Id,
             Codigo = op.Codigo,
             PedidoVendaId = op.PedidoVendaId,
-            PedidoVendaCodigo = op.PedidoVenda?.Codigo ?? string.Empty,
-            ClienteNome = op.PedidoVenda?.Cliente?.Pessoa?.Nome ?? string.Empty,
+            PedidoVendaCodigo = op.PedidoVenda?.Codigo,
+            ClienteNome = op.PedidoVenda?.Cliente?.Pessoa?.Nome,
             ProdutoId = op.ProdutoId,
             ProdutoCodigo = op.Produto?.Codigo ?? string.Empty,
             ProdutoDescricao = op.Produto?.Descricao ?? string.Empty,

@@ -6,19 +6,18 @@ namespace Api_ArjSys_Tcc.DTOs.Producao;
 public partial class OrdemProducaoDTO { }
 
 /// <summary>
-/// Entrada — criar OP Master. Liga ao PV + Produto raiz da BOM.
-/// OrdemPaiId = null (Master). Para criar filha, usar CriarFilhaDTO.
+/// Entrada — criar OP Master. PV é OPCIONAL (null = OP de estoque/independente).
+/// Se PV informado, deve estar em Liberado, Andamento ou Pausado.
 /// </summary>
 public class OrdemProducaoMasterCreateDTO
 {
-    public int PedidoVendaId { get; set; }
+    public int? PedidoVendaId { get; set; }
     public int ProdutoId { get; set; }
     public string? Observacoes { get; set; }
 }
 
 /// <summary>
 /// Entrada — criar OP Filha. Herda PV do Master, define Produto da BOM.
-/// QuantidadePlanejada do item é definida automaticamente (snapshot da BOM).
 /// </summary>
 public class OrdemProducaoFilhaCreateDTO
 {
@@ -27,27 +26,17 @@ public class OrdemProducaoFilhaCreateDTO
     public string? Observacoes { get; set; }
 }
 
-/// <summary>
-/// Entrada — editar dados cadastrais da OP.
-/// </summary>
 public class OrdemProducaoUpdateDTO
 {
     public string? Observacoes { get; set; }
 }
 
-/// <summary>
-/// Entrada — alterar status da OP.
-/// Justificativa obrigatória em Pausada e Cancelada.
-/// </summary>
 public class OrdemProducaoStatusDTO
 {
     public StatusOrdemProducao NovoStatus { get; set; }
     public string? Justificativa { get; set; }
 }
 
-/// <summary>
-/// Entrada — apontar produção em um item.
-/// </summary>
 public class OrdemProducaoApontamentoDTO
 {
     public decimal Quantidade { get; set; }
@@ -55,17 +44,16 @@ public class OrdemProducaoApontamentoDTO
 }
 
 /// <summary>
-/// Saída — retorno dos endpoints de OP.
-/// Inclui dados readonly do PV, Produto e lista de itens e filhas.
+/// Response da OP. PV e ClienteNome opcionais (OP de estoque pode não ter PV).
 /// </summary>
 public class OrdemProducaoResponseDTO
 {
     public int Id { get; set; }
     public string Codigo { get; set; } = string.Empty;
 
-    public int PedidoVendaId { get; set; }
-    public string PedidoVendaCodigo { get; set; } = string.Empty;
-    public string ClienteNome { get; set; } = string.Empty;
+    public int? PedidoVendaId { get; set; }
+    public string? PedidoVendaCodigo { get; set; }
+    public string? ClienteNome { get; set; }
 
     public int ProdutoId { get; set; }
     public string ProdutoCodigo { get; set; } = string.Empty;
@@ -74,6 +62,7 @@ public class OrdemProducaoResponseDTO
     public int? OrdemPaiId { get; set; }
     public string? OrdemPaiCodigo { get; set; }
     public bool EhMaster => OrdemPaiId == null;
+    public bool EhEstoque => PedidoVendaId == null;
 
     public StatusOrdemProducao Status { get; set; }
     public DateTime? DataInicio { get; set; }
@@ -87,9 +76,6 @@ public class OrdemProducaoResponseDTO
     public DateTime? ModificadoEm { get; set; }
 }
 
-/// <summary>
-/// Resumo de uma OP Filha (usado na listagem de filhas da Master).
-/// </summary>
 public class OrdemProducaoFilhaResumoDTO
 {
     public int Id { get; set; }
@@ -101,9 +87,6 @@ public class OrdemProducaoFilhaResumoDTO
     public decimal PercentualConcluido { get; set; }
 }
 
-/// <summary>
-/// Item da OP na response.
-/// </summary>
 public class OrdemProducaoItemResponseDTO
 {
     public int Id { get; set; }
@@ -122,9 +105,6 @@ public class OrdemProducaoItemResponseDTO
     public DateTime? ModificadoEm { get; set; }
 }
 
-/// <summary>
-/// Status de produção consolidado de uma OP (endpoint dedicado).
-/// </summary>
 public class OrdemProducaoStatusProducaoDTO
 {
     public int OrdemProducaoId { get; set; }
@@ -135,9 +115,6 @@ public class OrdemProducaoStatusProducaoDTO
     public bool TudoProduzido { get; set; }
 }
 
-/// <summary>
-/// Divergência entre OP × BOM atual (endpoint dedicado).
-/// </summary>
 public class OrdemProducaoDivergenciaItemDTO
 {
     public int ProdutoId { get; set; }
@@ -157,9 +134,6 @@ public class OrdemProducaoDivergenciaDTO
     public List<OrdemProducaoDivergenciaItemDTO> Divergencias { get; set; } = [];
 }
 
-/// <summary>
-/// Entrada do histórico.
-/// </summary>
 public partial class OrdemProducaoHistoricoDTO { }
 
 public class OrdemProducaoHistoricoResponseDTO

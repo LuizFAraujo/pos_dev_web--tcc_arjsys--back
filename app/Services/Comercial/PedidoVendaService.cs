@@ -1,8 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.Models.Comercial;
 using Api_ArjSys_Tcc.Models.Comercial.Enums;
+using Api_ArjSys_Tcc.Models.Producao.Enums;
+using Api_ArjSys_Tcc.DTOs.Admin;
 using Api_ArjSys_Tcc.DTOs.Comercial;
+using Api_ArjSys_Tcc.Services.Admin;
 
 namespace Api_ArjSys_Tcc.Services.Comercial;
 
@@ -13,14 +17,17 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 ///   Normal   → Liberado → Andamento → Concluido → AEntregar → Entregue
 ///   PreVenda → AguardandoNS → RecebidoNS → AguardandoRetorno → Liberado → (fluxo Normal)
 /// Status especiais: Pausado, Cancelado, Reaberto, Devolvido.
+///
+/// Integrações automáticas:
+/// - PV → Liberado: notifica módulo Producao (novo PV para programar);
+/// - PV → Entregue: bloqueia se existe OP Master não finalizada;
+/// - PV → Cancelado/Pausado: notifica módulo Producao (pode ter OPs ativas).
 /// </summary>
-public class PedidoVendaService(AppDbContext context)
+public class PedidoVendaService(AppDbContext context, NotificacaoService notificacoes)
 {
     private readonly AppDbContext _context = context;
+    private readonly NotificacaoService _notificacoes = notificacoes;
 
-    /// <summary>
-    /// Lista todos os PVs. Suporta paginação opcional.
-    /// </summary>
     public async Task<List<PedidoVendaResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
     {
         var query = _context.PedidosVenda
@@ -50,9 +57,6 @@ public class PedidoVendaService(AppDbContext context)
         return resultado;
     }
 
-    /// <summary>
-    /// Busca PV por ID, incluindo itens.
-    /// </summary>
     public async Task<PedidoVendaResponseDTO?> GetById(int id)
     {
         var pedido = await _context.PedidosVenda
@@ -71,10 +75,9 @@ public class PedidoVendaService(AppDbContext context)
     }
 
     /// <summary>
-    /// Cria Pedido de Venda. Status inicial é definido pelo tipo:
-    ///   Normal   → Liberado
+    /// Cria Pedido de Venda. Status inicial por tipo:
+    ///   Normal   → Liberado (notifica Producao)
     ///   PreVenda → AguardandoNS
-    /// Registra evento Criado no histórico.
     /// </summary>
     public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Create(PedidoVendaCreateDTO dto)
     {
@@ -111,13 +114,14 @@ public class PedidoVendaService(AppDbContext context)
         await _context.SaveChangesAsync();
 
         pedido.Cliente = cliente;
+
+        // Notifica Producao se já nasceu Liberado (Normal)
+        if (statusInicial == StatusPedidoVenda.Liberado)
+            await NotificarProducaoPvLiberado(pedido);
+
         return (ToResponseDTO(pedido, []), null);
     }
 
-    /// <summary>
-    /// Atualiza dados cadastrais do PV. Permitido apenas em status de fluxo inicial
-    /// (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado).
-    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, PedidoVendaCreateDTO dto)
     {
         var pedido = await _context.PedidosVenda.FindAsync(id);
@@ -145,17 +149,15 @@ public class PedidoVendaService(AppDbContext context)
     }
 
     /// <summary>
-    /// Altera status do PV com validação de transição e justificativa.
-    /// Regras:
-    /// - Pausar/Cancelar proibidos em Entregue.
-    /// - Devolvido só pode vir de Entregue.
-    /// - Cancelado só pode ir para Reaberto.
-    /// - Justificativa obrigatória em: Pausado, Cancelado, Reaberto, Devolvido e retrocesso.
-    /// Registra evento no histórico com statusAnterior, statusNovo e justificativa.
+    /// Altera status do PV com validações + integração com Produção:
+    /// - Bloqueia Entregue se existe OP Master em Pendente/Andamento/Pausada.
+    /// - Notifica Producao em Liberado, Cancelado e Pausado.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> AlterarStatus(int id, StatusPedidoVendaDTO dto)
     {
-        var pedido = await _context.PedidosVenda.FindAsync(id);
+        var pedido = await _context.PedidosVenda
+            .Include(p => p.Cliente).ThenInclude(c => c.Pessoa)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (pedido == null)
             return (false, null);
@@ -170,6 +172,20 @@ public class PedidoVendaService(AppDbContext context)
         if (!transicaoValida)
             return (false, erroTransicao);
 
+        // Bloqueio: Entregue só se todas OPs Master finalizadas
+        if (novoStatus == StatusPedidoVenda.Entregue)
+        {
+            var pendentes = await _context.OrdensProducao
+                .Where(o => o.PedidoVendaId == id
+                         && o.OrdemPaiId == null
+                         && o.Status != StatusOrdemProducao.Concluida
+                         && o.Status != StatusOrdemProducao.Cancelada)
+                .CountAsync();
+
+            if (pendentes > 0)
+                return (false, $"Não é possível marcar como Entregue: existem {pendentes} OP(s) Master não finalizada(s)");
+        }
+
         var exigeJustificativa = ExigeJustificativa(statusAnterior, novoStatus);
         var justificativa = dto.Justificativa?.Trim();
 
@@ -183,12 +199,18 @@ public class PedidoVendaService(AppDbContext context)
         RegistrarEvento(id, evento, statusAnterior, novoStatus, justificativa);
 
         await _context.SaveChangesAsync();
+
+        // Notificações automáticas
+        if (novoStatus == StatusPedidoVenda.Liberado)
+            await NotificarProducaoPvLiberado(pedido);
+        else if (novoStatus == StatusPedidoVenda.Cancelado)
+            await NotificarProducaoPvCancelado(pedido, justificativa);
+        else if (novoStatus == StatusPedidoVenda.Pausado)
+            await NotificarProducaoPvPausado(pedido, justificativa);
+
         return (true, null);
     }
 
-    /// <summary>
-    /// Exclui PV. Permitido apenas nos primeiros status (AguardandoNS, Liberado) e sem NS vinculado.
-    /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Delete(int id)
     {
         var pedido = await _context.PedidosVenda.FindAsync(id);
@@ -200,9 +222,12 @@ public class PedidoVendaService(AppDbContext context)
             return (false, "Só é possível excluir PV nos status iniciais (AguardandoNS ou Liberado)");
 
         var temNS = await _context.NumerosSerie.AnyAsync(n => n.PedidoVendaId == id);
-
         if (temNS)
             return (false, "Não é possível excluir pedido com Número de Série vinculado");
+
+        var temOp = await _context.OrdensProducao.AnyAsync(o => o.PedidoVendaId == id);
+        if (temOp)
+            return (false, "Não é possível excluir pedido com Ordens de Produção vinculadas");
 
         var itens = await _context.PedidosVendaItens.Where(i => i.PedidoVendaId == id).ToListAsync();
         _context.PedidosVendaItens.RemoveRange(itens);
@@ -215,9 +240,6 @@ public class PedidoVendaService(AppDbContext context)
         return (true, null);
     }
 
-    /// <summary>
-    /// Retorna o histórico de eventos de um PV, ordenado do mais recente pro mais antigo.
-    /// </summary>
     public async Task<List<PedidoVendaHistoricoResponseDTO>> GetHistorico(int pedidoVendaId)
     {
         return await _context.PedidoVendaHistorico
@@ -236,9 +258,67 @@ public class PedidoVendaService(AppDbContext context)
             .ToListAsync();
     }
 
-    /// <summary>
-    /// Gera o próximo código no formato PV.AAAA.MM.NNNN.
-    /// </summary>
+    // ========================================================================
+    // NOTIFICAÇÕES AUTOMÁTICAS
+    // ========================================================================
+
+    private async Task NotificarProducaoPvLiberado(PedidoVenda pv)
+    {
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Producao,
+            Tipo = TipoNotificacao.Info,
+            Titulo = $"PV {pv.Codigo} liberado para produção",
+            Mensagem = $"Cliente: {pv.Cliente?.Pessoa?.Nome ?? "?"}. Programar OPs.",
+            OrigemTabela = "Comercial_PedidosVenda",
+            OrigemId = pv.Id
+        });
+    }
+
+    private async Task NotificarProducaoPvCancelado(PedidoVenda pv, string? justificativa)
+    {
+        var temOpAtiva = await _context.OrdensProducao
+            .AnyAsync(o => o.PedidoVendaId == pv.Id
+                        && o.Status != StatusOrdemProducao.Concluida
+                        && o.Status != StatusOrdemProducao.Cancelada);
+
+        if (!temOpAtiva) return;
+
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Producao,
+            Tipo = TipoNotificacao.Aviso,
+            Titulo = $"PV {pv.Codigo} cancelado — há OPs ativas",
+            Mensagem = $"Motivo: {justificativa ?? "(sem justificativa)"}. Avaliar cancelamento das OPs.",
+            OrigemTabela = "Comercial_PedidosVenda",
+            OrigemId = pv.Id
+        });
+    }
+
+    private async Task NotificarProducaoPvPausado(PedidoVenda pv, string? justificativa)
+    {
+        var temOpAtiva = await _context.OrdensProducao
+            .AnyAsync(o => o.PedidoVendaId == pv.Id
+                        && o.Status != StatusOrdemProducao.Concluida
+                        && o.Status != StatusOrdemProducao.Cancelada);
+
+        if (!temOpAtiva) return;
+
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Producao,
+            Tipo = TipoNotificacao.Aviso,
+            Titulo = $"PV {pv.Codigo} pausado — há OPs ativas",
+            Mensagem = $"Motivo: {justificativa ?? "(sem justificativa)"}. Avaliar pausa das OPs.",
+            OrigemTabela = "Comercial_PedidosVenda",
+            OrigemId = pv.Id
+        });
+    }
+
+    // ========================================================================
+    // PRIVATES
+    // ========================================================================
+
     private async Task<string> GerarCodigo()
     {
         var agora = DateTime.UtcNow;
@@ -261,14 +341,6 @@ public class PedidoVendaService(AppDbContext context)
         return $"{prefixo}.{sequencial:D4}";
     }
 
-    /// <summary>
-    /// Valida se a transição de status é permitida.
-    /// Regras de bloqueio:
-    /// - Entregue: não aceita Pausar nem Cancelar (só Devolvido).
-    /// - Cancelado: só pode ir para Reaberto.
-    /// - Devolvido: só pode vir de Entregue.
-    /// - Reaberto é status permanente até Comercial movê-lo manualmente para Liberado.
-    /// </summary>
     private static (bool Valida, string? Erro) TransicaoPermitida(StatusPedidoVenda atual, StatusPedidoVenda novo)
     {
         if (atual == StatusPedidoVenda.Entregue && novo != StatusPedidoVenda.Devolvido)
@@ -286,10 +358,6 @@ public class PedidoVendaService(AppDbContext context)
         return (true, null);
     }
 
-    /// <summary>
-    /// Nível ordinal do status no fluxo — usado para detectar retrocesso.
-    /// Status especiais têm nível -1 (fora do fluxo linear).
-    /// </summary>
     private static int NivelFluxo(StatusPedidoVenda status) => status switch
     {
         StatusPedidoVenda.AguardandoNS       => 0,
@@ -303,10 +371,6 @@ public class PedidoVendaService(AppDbContext context)
         _ => -1
     };
 
-    /// <summary>
-    /// Determina se a transição exige justificativa obrigatória.
-    /// Regra: ir para Pausado/Cancelado/Reaberto/Devolvido OU retroceder no fluxo.
-    /// </summary>
     private static bool ExigeJustificativa(StatusPedidoVenda atual, StatusPedidoVenda novo)
     {
         if (novo == StatusPedidoVenda.Pausado) return true;
@@ -320,9 +384,6 @@ public class PedidoVendaService(AppDbContext context)
         return false;
     }
 
-    /// <summary>
-    /// Indica se o status faz parte do fluxo linear (não é especial).
-    /// </summary>
     private static bool EhStatusDeFluxo(StatusPedidoVenda status) => status switch
     {
         StatusPedidoVenda.Pausado    => false,
@@ -332,10 +393,6 @@ public class PedidoVendaService(AppDbContext context)
         _ => true
     };
 
-    /// <summary>
-    /// Indica se o status permite edição dos dados cadastrais do PV.
-    /// Permitido nos status iniciais; bloqueado após produção começar.
-    /// </summary>
     private static bool StatusPermiteEdicao(StatusPedidoVenda status) => status switch
     {
         StatusPedidoVenda.AguardandoNS      => true,
@@ -345,9 +402,6 @@ public class PedidoVendaService(AppDbContext context)
         _ => false
     };
 
-    /// <summary>
-    /// Mapeia a transição de status para o evento correspondente no histórico.
-    /// </summary>
     private static EventoPedidoVenda MapearEvento(StatusPedidoVenda anterior, StatusPedidoVenda novo)
     {
         if (anterior == StatusPedidoVenda.Cancelado && novo == StatusPedidoVenda.Reaberto)
@@ -372,9 +426,6 @@ public class PedidoVendaService(AppDbContext context)
         return EventoPedidoVenda.Criado;
     }
 
-    /// <summary>
-    /// Registra um evento no histórico do PV.
-    /// </summary>
     private void RegistrarEvento(
         int pedidoVendaId,
         EventoPedidoVenda evento,
@@ -394,9 +445,6 @@ public class PedidoVendaService(AppDbContext context)
         });
     }
 
-    /// <summary>
-    /// Converte entidade PV + itens em DTO de resposta.
-    /// </summary>
     private static PedidoVendaResponseDTO ToResponseDTO(PedidoVenda p, List<PedidoVendaItem> itens) => new()
     {
         Id = p.Id,
