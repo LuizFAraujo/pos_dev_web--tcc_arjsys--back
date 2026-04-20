@@ -10,6 +10,8 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// Serviço do Número de Série.
 /// NS não tem tipo nem status próprios — herda do PV vinculado (exibição readonly).
 /// Relação 1:1 com PV.
+/// Criação manual só para PV tipo PreVenda em status AguardandoNS.
+/// PV tipo Normal recebe NS automaticamente via Ordem de Produção (Fase 3).
 /// </summary>
 public class NumeroSerieService(AppDbContext context)
 {
@@ -69,9 +71,10 @@ public class NumeroSerieService(AppDbContext context)
 
     /// <summary>
     /// Cria NS vinculado a um PV. Regras:
-    /// - PV deve estar em status Aguardando ou EmAndamento;
-    /// - PV não pode estar Cancelado;
+    /// - PV deve ser do tipo PreVenda;
+    /// - PV deve estar em status AguardandoNS;
     /// - 1 PV = 1 NS (rejeita se já existe NS vinculado).
+    /// PV tipo Normal não tem criação manual — NS é gerado via Ordem de Produção.
     /// </summary>
     public async Task<(NumeroSerieResponseDTO? Item, string? Erro)> Create(NumeroSerieCreateDTO dto)
     {
@@ -83,11 +86,11 @@ public class NumeroSerieService(AppDbContext context)
         if (pedido == null)
             return (null, "Pedido não encontrado");
 
-        if (pedido.Status == StatusPedidoVenda.Cancelado)
-            return (null, "Não é possível gerar N.Série para pedido cancelado");
+        if (pedido.Tipo != TipoPedidoVenda.PreVenda)
+            return (null, "Criação manual de NS só é permitida para PV do tipo PreVenda");
 
-        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
-            return (null, "Só é possível gerar N.Série para pedido em Aguardando ou Em Andamento");
+        if (pedido.Status != StatusPedidoVenda.AguardandoNS)
+            return (null, "PV PreVenda só aceita NS em status AguardandoNS");
 
         var jaExiste = await _context.NumerosSerie.AnyAsync(n => n.PedidoVendaId == dto.PedidoVendaId);
 
@@ -168,7 +171,7 @@ public class NumeroSerieService(AppDbContext context)
         PedidoVendaCodigo = n.PedidoVenda?.Codigo ?? string.Empty,
         ClienteNome = n.PedidoVenda?.Cliente?.Pessoa?.Nome ?? string.Empty,
         PvTipo = n.PedidoVenda?.Tipo ?? TipoPedidoVenda.Normal,
-        PvStatus = n.PedidoVenda?.Status ?? StatusPedidoVenda.Aguardando,
+        PvStatus = n.PedidoVenda?.Status ?? StatusPedidoVenda.Liberado,
         PvDataEntrega = n.PedidoVenda?.DataEntrega,
         CodigoProjeto = n.CodigoProjeto,
         CriadoEm = n.CriadoEm,

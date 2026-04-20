@@ -9,10 +9,15 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// <summary>
 /// Serviço dos itens do Pedido de Venda.
 /// Itens são descrição livre (sem vínculo com Produto cadastrado).
+/// Edição segue a mesma regra do PV: permitida apenas nos status iniciais
+/// (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado).
 /// </summary>
 public class PedidoVendaItemService(AppDbContext context)
 {
     private readonly AppDbContext _context = context;
+
+    private const string ErroStatusEdicao =
+        "Só é possível editar itens nos status iniciais do PV (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado)";
 
     /// <summary>
     /// Lista todos os itens de um PV.
@@ -36,7 +41,7 @@ public class PedidoVendaItemService(AppDbContext context)
     }
 
     /// <summary>
-    /// Adiciona item ao PV. Permitido em Aguardando ou EmAndamento.
+    /// Adiciona item ao PV. Permitido nos status iniciais do PV.
     /// </summary>
     public async Task<(PedidoVendaItemResponseDTO? Item, string? Erro)> Create(int pedidoId, PedidoVendaItemCreateDTO dto)
     {
@@ -45,8 +50,8 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido == null)
             return (null, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
-            return (null, "Só é possível adicionar itens em pedidos com status Aguardando ou Em Andamento");
+        if (!StatusPermiteEdicao(pedido.Status))
+            return (null, ErroStatusEdicao);
 
         if (dto.Quantidade <= 0)
             return (null, "Quantidade deve ser maior que zero");
@@ -70,7 +75,7 @@ public class PedidoVendaItemService(AppDbContext context)
     }
 
     /// <summary>
-    /// Atualiza item do PV. Permitido em Aguardando ou EmAndamento.
+    /// Atualiza item do PV. Permitido nos status iniciais do PV.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int pedidoId, int id, PedidoVendaItemCreateDTO dto)
     {
@@ -79,8 +84,8 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido == null)
             return (false, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
-            return (false, "Só é possível editar itens em pedidos com status Aguardando ou Em Andamento");
+        if (!StatusPermiteEdicao(pedido.Status))
+            return (false, ErroStatusEdicao);
 
         var item = await _context.PedidosVendaItens.FirstOrDefaultAsync(i => i.Id == id && i.PedidoVendaId == pedidoId);
 
@@ -103,7 +108,7 @@ public class PedidoVendaItemService(AppDbContext context)
     }
 
     /// <summary>
-    /// Remove item do PV. Permitido em Aguardando ou EmAndamento.
+    /// Remove item do PV. Permitido nos status iniciais do PV.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Delete(int pedidoId, int id)
     {
@@ -112,8 +117,8 @@ public class PedidoVendaItemService(AppDbContext context)
         if (pedido == null)
             return (false, "Pedido não encontrado");
 
-        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
-            return (false, "Só é possível remover itens em pedidos com status Aguardando ou Em Andamento");
+        if (!StatusPermiteEdicao(pedido.Status))
+            return (false, ErroStatusEdicao);
 
         var item = await _context.PedidosVendaItens.FirstOrDefaultAsync(i => i.Id == id && i.PedidoVendaId == pedidoId);
 
@@ -124,6 +129,19 @@ public class PedidoVendaItemService(AppDbContext context)
         await _context.SaveChangesAsync();
         return (true, null);
     }
+
+    /// <summary>
+    /// Indica se o status do PV permite edição dos itens.
+    /// Mesma regra da edição do PV: apenas status iniciais do fluxo.
+    /// </summary>
+    private static bool StatusPermiteEdicao(StatusPedidoVenda status) => status switch
+    {
+        StatusPedidoVenda.AguardandoNS      => true,
+        StatusPedidoVenda.RecebidoNS        => true,
+        StatusPedidoVenda.AguardandoRetorno => true,
+        StatusPedidoVenda.Liberado          => true,
+        _ => false
+    };
 
     /// <summary>
     /// Converte entidade em DTO de resposta.

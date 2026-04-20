@@ -1,5 +1,5 @@
 ### =============================================
-### COMERCIAL - PEDIDOS DE VENDA (v2)
+### COMERCIAL - PEDIDOS DE VENDA (v3)
 ### =============================================
 
 ### Listar todos
@@ -20,32 +20,32 @@ Accept: application/json
 
 
 ### =============================================
-### CRIAR PV
+### CRIAR PV — status inicial depende do tipo
 ### =============================================
 
-### Criar PV Normal (status inicial EmAndamento)
+### Criar PV Normal (status inicial: Liberado)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
   "clienteId": 1,
   "tipo": "Normal",
-  "observacoes": "Venda realizada",
+  "observacoes": "Venda fechada",
   "dataEntrega": "2026-06-15"
 }
 
-### Criar PV VendaFutura (status inicial Aguardando)
+### Criar PV PreVenda (status inicial: AguardandoNS)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
   "clienteId": 2,
-  "tipo": "VendaFutura",
-  "observacoes": "Pré-pedido — aguardando financiamento",
+  "tipo": "PreVenda",
+  "observacoes": "Pré-venda — aguardando financiamento",
   "dataEntrega": "2026-09-30"
 }
 
-### Criar PV com data da venda explícita (venda boca a boca, input posterior)
+### Criar PV com data da venda explícita (venda cadastrada com atraso)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
@@ -53,7 +53,7 @@ Content-Type: application/json
   "clienteId": 1,
   "tipo": "Normal",
   "data": "2026-04-10T08:00:00Z",
-  "observacoes": "Venda fechada no dia 10, cadastrada depois",
+  "observacoes": "Venda fechada dia 10, cadastrada depois",
   "dataEntrega": "2026-06-20"
 }
 
@@ -68,11 +68,11 @@ Content-Type: application/json
 
 
 ### =============================================
-### ATUALIZAR PV
+### ATUALIZAR PV (só em status iniciais)
 ### =============================================
 
-### Atualizar PV (só em Aguardando ou EmAndamento) — ajustar ID
-PUT {{host}}/api/comercial/PedidoVenda/21
+### Atualizar PV (permitido em AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado)
+PUT {{host}}/api/comercial/PedidoVenda/15
 Content-Type: application/json
 
 {
@@ -84,43 +84,64 @@ Content-Type: application/json
 
 
 ### =============================================
-### TRANSIÇÕES DE STATUS — AVANÇO NORMAL (sem justificativa)
+### FLUXO PREVENDA — avanço até Liberado
 ### =============================================
 
-### Aguardando → EmAndamento (aprovação)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### PreVenda: AguardandoNS → RecebidoNS (sem justificativa)
+PATCH {{host}}/api/comercial/PedidoVenda/15/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmAndamento"
+  "novoStatus": "RecebidoNS"
 }
 
-### Pausado → EmAndamento (retomada)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### PreVenda: RecebidoNS → AguardandoRetorno
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmAndamento"
+  "novoStatus": "AguardandoRetorno"
 }
 
-### EmAndamento → Concluido
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### PreVenda: AguardandoRetorno → Liberado (aprovação do cliente)
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Liberado"
+}
+
+
+### =============================================
+### FLUXO NORMAL — Liberado → Entregue
+### =============================================
+
+### Liberado → Andamento (Produção iniciou)
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Andamento"
+}
+
+### Andamento → Concluido (Produção finalizou)
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
   "novoStatus": "Concluido"
 }
 
-### Concluido → AguardandoEntrega
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### Concluido → AEntregar (Comercial liberou expedição)
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
-  "novoStatus": "AguardandoEntrega"
+  "novoStatus": "AEntregar"
 }
 
-### AguardandoEntrega → Entregue
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### AEntregar → Entregue (entrega confirmada)
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
@@ -129,11 +150,11 @@ Content-Type: application/json
 
 
 ### =============================================
-### TRANSIÇÕES QUE EXIGEM JUSTIFICATIVA
+### PAUSAR / RETOMAR (justificativa obrigatória no Pausar)
 ### =============================================
 
 ### Pausar (justificativa obrigatória)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
@@ -142,15 +163,28 @@ Content-Type: application/json
 }
 
 ### Pausar sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
   "novoStatus": "Pausado"
 }
 
+### Retomar (Pausado → Liberado, sem justificativa — é avanço)
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Liberado"
+}
+
+
+### =============================================
+### CANCELAR / REABRIR (justificativa obrigatória)
+### =============================================
+
 ### Cancelar (justificativa obrigatória)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+PATCH {{host}}/api/comercial/PedidoVenda/17/status
 Content-Type: application/json
 
 {
@@ -159,11 +193,78 @@ Content-Type: application/json
 }
 
 ### Cancelar sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+PATCH {{host}}/api/comercial/PedidoVenda/17/status
 Content-Type: application/json
 
 {
   "novoStatus": "Cancelado"
+}
+
+### Cancelado → Reaberto (única transição permitida a partir de Cancelado)
+PATCH {{host}}/api/comercial/PedidoVenda/17/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Reaberto",
+  "justificativa": "Cancelamento feito por engano"
+}
+
+### Cancelado → Liberado direto → 400 (só pode ir para Reaberto)
+PATCH {{host}}/api/comercial/PedidoVenda/17/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Liberado",
+  "justificativa": "tentativa direta"
+}
+
+### Reaberto → Liberado (manual, feito pelo Comercial após reabertura)
+PATCH {{host}}/api/comercial/PedidoVenda/17/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Liberado"
+}
+
+
+### =============================================
+### ENTREGUE — só aceita Devolvido (Pausar/Cancelar bloqueados)
+### =============================================
+
+### Entregue → Pausado → 400 (bloqueado)
+PATCH {{host}}/api/comercial/PedidoVenda/1/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Pausado",
+  "justificativa": "tentativa inválida"
+}
+
+### Entregue → Cancelado → 400 (bloqueado)
+PATCH {{host}}/api/comercial/PedidoVenda/1/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Cancelado",
+  "justificativa": "tentativa inválida"
+}
+
+### Entregue → Devolvido (justificativa obrigatória)
+PATCH {{host}}/api/comercial/PedidoVenda/1/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Devolvido",
+  "justificativa": "Cliente devolveu por defeito de fabricação"
+}
+
+### Devolvido aplicado em PV não-Entregue → 400
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Devolvido",
+  "justificativa": "tentativa inválida"
 }
 
 
@@ -171,70 +272,30 @@ Content-Type: application/json
 ### RETROCESSO (justificativa obrigatória)
 ### =============================================
 
-### Concluido → EmAndamento (retrocesso)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### Concluido → Andamento (retrocesso 1 nível)
+PATCH {{host}}/api/comercial/PedidoVenda/18/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmAndamento",
-  "justificativa": "Projeto teve revisão solicitada pelo cliente"
+  "novoStatus": "Andamento",
+  "justificativa": "Revisão técnica solicitada"
 }
 
-### AguardandoEntrega → Concluido (retrocesso)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### AEntregar → Andamento (retrocesso 2 níveis)
+PATCH {{host}}/api/comercial/PedidoVenda/18/status
 Content-Type: application/json
 
 {
-  "novoStatus": "Concluido",
-  "justificativa": "Detectada pendência técnica antes da expedição"
-}
-
-### AguardandoEntrega → EmAndamento (retrocesso de 2 níveis)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
-Content-Type: application/json
-
-{
-  "novoStatus": "EmAndamento",
-  "justificativa": "Retrabalho de engenharia necessário"
+  "novoStatus": "Andamento",
+  "justificativa": "Retrabalho detectado antes da expedição"
 }
 
 ### Retrocesso sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+PATCH {{host}}/api/comercial/PedidoVenda/18/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmAndamento"
-}
-
-
-### =============================================
-### REABERTURA (Cancelado → qualquer, justificativa obrigatória)
-### =============================================
-
-### Cancelado → EmAndamento (reabertura)
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
-Content-Type: application/json
-
-{
-  "novoStatus": "EmAndamento",
-  "justificativa": "Cancelamento feito por engano"
-}
-
-### Cancelado → Aguardando (reabertura)
-PATCH {{host}}/api/comercial/PedidoVenda/22/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Aguardando",
-  "justificativa": "Cliente retomou interesse no pré-pedido"
-}
-
-### Reabertura sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
-Content-Type: application/json
-
-{
-  "novoStatus": "EmAndamento"
+  "novoStatus": "Andamento"
 }
 
 
@@ -242,12 +303,12 @@ Content-Type: application/json
 ### MESMO STATUS → 400
 ### =============================================
 
-### EmAndamento → EmAndamento → 400
-PATCH {{host}}/api/comercial/PedidoVenda/21/status
+### Liberado → Liberado → 400
+PATCH {{host}}/api/comercial/PedidoVenda/16/status
 Content-Type: application/json
 
 {
-  "novoStatus": "EmAndamento"
+  "novoStatus": "Liberado"
 }
 
 
@@ -255,10 +316,10 @@ Content-Type: application/json
 ### DELETE
 ### =============================================
 
-### Deletar PV (só em Aguardando e sem NS)
-DELETE {{host}}/api/comercial/PedidoVenda/21
+### Deletar PV (permitido em AguardandoNS ou Liberado, sem NS vinculado)
+DELETE {{host}}/api/comercial/PedidoVenda/16
 
-### Deletar PV EmAndamento → 400
+### Deletar PV em Andamento → 400
 DELETE {{host}}/api/comercial/PedidoVenda/1
 
 
@@ -266,6 +327,6 @@ DELETE {{host}}/api/comercial/PedidoVenda/1
 ### HISTÓRICO DO PV
 ### =============================================
 
-### Consultar histórico (com statusAnterior, statusNovo, justificativa)
-GET {{host}}/api/comercial/PedidoVenda/21/historico
+### Consultar histórico (evento, statusAnterior, statusNovo, justificativa, dataHora)
+GET {{host}}/api/comercial/PedidoVenda/15/historico
 Accept: application/json

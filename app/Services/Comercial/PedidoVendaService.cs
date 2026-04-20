@@ -9,6 +9,10 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// <summary>
 /// Serviço do Pedido de Venda.
 /// Gerencia CRUD, transições de status com justificativa condicional e histórico de eventos.
+/// Fluxo depende do Tipo:
+///   Normal   → Liberado → Andamento → Concluido → AEntregar → Entregue
+///   PreVenda → AguardandoNS → RecebidoNS → AguardandoRetorno → Liberado → (fluxo Normal)
+/// Status especiais: Pausado, Cancelado, Reaberto, Devolvido.
 /// </summary>
 public class PedidoVendaService(AppDbContext context)
 {
@@ -68,7 +72,8 @@ public class PedidoVendaService(AppDbContext context)
 
     /// <summary>
     /// Cria Pedido de Venda. Status inicial é definido pelo tipo:
-    /// Normal → EmAndamento, VendaFutura → Aguardando.
+    ///   Normal   → Liberado
+    ///   PreVenda → AguardandoNS
     /// Registra evento Criado no histórico.
     /// </summary>
     public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Create(PedidoVendaCreateDTO dto)
@@ -80,9 +85,9 @@ public class PedidoVendaService(AppDbContext context)
         if (cliente == null)
             return (null, "Cliente não encontrado");
 
-        var statusInicial = dto.Tipo == TipoPedidoVenda.VendaFutura
-            ? StatusPedidoVenda.Aguardando
-            : StatusPedidoVenda.EmAndamento;
+        var statusInicial = dto.Tipo == TipoPedidoVenda.PreVenda
+            ? StatusPedidoVenda.AguardandoNS
+            : StatusPedidoVenda.Liberado;
 
         var codigo = await GerarCodigo();
         var agora = DateTime.UtcNow;
@@ -110,7 +115,8 @@ public class PedidoVendaService(AppDbContext context)
     }
 
     /// <summary>
-    /// Atualiza dados cadastrais do PV. Permitido apenas em Aguardando ou EmAndamento.
+    /// Atualiza dados cadastrais do PV. Permitido apenas em status de fluxo inicial
+    /// (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado).
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, PedidoVendaCreateDTO dto)
     {
@@ -119,8 +125,8 @@ public class PedidoVendaService(AppDbContext context)
         if (pedido == null)
             return (false, null);
 
-        if (pedido.Status != StatusPedidoVenda.Aguardando && pedido.Status != StatusPedidoVenda.EmAndamento)
-            return (false, "Só é possível editar pedidos com status Aguardando ou Em Andamento");
+        if (!StatusPermiteEdicao(pedido.Status))
+            return (false, "Só é possível editar o PV nos status iniciais do fluxo (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado)");
 
         var cliente = await _context.Clientes.FindAsync(dto.ClienteId);
 
@@ -140,7 +146,11 @@ public class PedidoVendaService(AppDbContext context)
 
     /// <summary>
     /// Altera status do PV com validação de transição e justificativa.
-    /// Justificativa é obrigatória em: pausar, cancelar, retroceder (qualquer) e reabrir (sair do Cancelado).
+    /// Regras:
+    /// - Pausar/Cancelar proibidos em Entregue.
+    /// - Devolvido só pode vir de Entregue.
+    /// - Cancelado só pode ir para Reaberto.
+    /// - Justificativa obrigatória em: Pausado, Cancelado, Reaberto, Devolvido e retrocesso.
     /// Registra evento no histórico com statusAnterior, statusNovo e justificativa.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> AlterarStatus(int id, StatusPedidoVendaDTO dto)
@@ -156,7 +166,10 @@ public class PedidoVendaService(AppDbContext context)
         if (statusAnterior == novoStatus)
             return (false, $"O pedido já está com status {novoStatus}");
 
-        // Justificativa: obrigatória em pausar, cancelar, reabrir e retroceder
+        var (transicaoValida, erroTransicao) = TransicaoPermitida(statusAnterior, novoStatus);
+        if (!transicaoValida)
+            return (false, erroTransicao);
+
         var exigeJustificativa = ExigeJustificativa(statusAnterior, novoStatus);
         var justificativa = dto.Justificativa?.Trim();
 
@@ -174,7 +187,7 @@ public class PedidoVendaService(AppDbContext context)
     }
 
     /// <summary>
-    /// Exclui PV. Permitido apenas em Aguardando e sem NS vinculado.
+    /// Exclui PV. Permitido apenas nos primeiros status (AguardandoNS, Liberado) e sem NS vinculado.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Delete(int id)
     {
@@ -183,8 +196,8 @@ public class PedidoVendaService(AppDbContext context)
         if (pedido == null)
             return (false, null);
 
-        if (pedido.Status != StatusPedidoVenda.Aguardando)
-            return (false, "Só é possível excluir pedidos com status Aguardando");
+        if (pedido.Status != StatusPedidoVenda.AguardandoNS && pedido.Status != StatusPedidoVenda.Liberado)
+            return (false, "Só é possível excluir PV nos status iniciais (AguardandoNS ou Liberado)");
 
         var temNS = await _context.NumerosSerie.AnyAsync(n => n.PedidoVendaId == id);
 
@@ -249,55 +262,114 @@ public class PedidoVendaService(AppDbContext context)
     }
 
     /// <summary>
-    /// Nível ordinal do status — usado para detectar retrocesso.
-    /// Cancelado é terminal (nível -1); qualquer saída do Cancelado é reabertura.
-    /// Pausado divide o nível 1 com EmAndamento (transição lateral, não retrocesso).
+    /// Valida se a transição de status é permitida.
+    /// Regras de bloqueio:
+    /// - Entregue: não aceita Pausar nem Cancelar (só Devolvido).
+    /// - Cancelado: só pode ir para Reaberto.
+    /// - Devolvido: só pode vir de Entregue.
+    /// - Reaberto é status permanente até Comercial movê-lo manualmente para Liberado.
     /// </summary>
-    private static int NivelStatus(StatusPedidoVenda status) => status switch
+    private static (bool Valida, string? Erro) TransicaoPermitida(StatusPedidoVenda atual, StatusPedidoVenda novo)
     {
-        StatusPedidoVenda.Cancelado => -1,
-        StatusPedidoVenda.Aguardando => 0,
-        StatusPedidoVenda.EmAndamento => 1,
-        StatusPedidoVenda.Pausado => 1,
-        StatusPedidoVenda.Concluido => 2,
-        StatusPedidoVenda.AguardandoEntrega => 3,
-        StatusPedidoVenda.Entregue => 4,
-        _ => 0
+        if (atual == StatusPedidoVenda.Entregue && novo != StatusPedidoVenda.Devolvido)
+            return (false, "PV Entregue só pode ir para Devolvido");
+
+        if (atual == StatusPedidoVenda.Cancelado && novo != StatusPedidoVenda.Reaberto)
+            return (false, "PV Cancelado só pode ser movido para Reaberto");
+
+        if (novo == StatusPedidoVenda.Devolvido && atual != StatusPedidoVenda.Entregue)
+            return (false, "Devolvido só pode ser aplicado a PV Entregue");
+
+        if (novo == StatusPedidoVenda.Reaberto && atual != StatusPedidoVenda.Cancelado)
+            return (false, "Reaberto só pode ser aplicado a PV Cancelado");
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Nível ordinal do status no fluxo — usado para detectar retrocesso.
+    /// Status especiais têm nível -1 (fora do fluxo linear).
+    /// </summary>
+    private static int NivelFluxo(StatusPedidoVenda status) => status switch
+    {
+        StatusPedidoVenda.AguardandoNS       => 0,
+        StatusPedidoVenda.RecebidoNS         => 1,
+        StatusPedidoVenda.AguardandoRetorno  => 2,
+        StatusPedidoVenda.Liberado           => 3,
+        StatusPedidoVenda.Andamento          => 4,
+        StatusPedidoVenda.Concluido          => 5,
+        StatusPedidoVenda.AEntregar          => 6,
+        StatusPedidoVenda.Entregue           => 7,
+        _ => -1
     };
 
     /// <summary>
     /// Determina se a transição exige justificativa obrigatória.
-    /// Regra: pausar, cancelar, reabrir (saída do Cancelado) e retroceder (nível menor).
+    /// Regra: ir para Pausado/Cancelado/Reaberto/Devolvido OU retroceder no fluxo.
     /// </summary>
     private static bool ExigeJustificativa(StatusPedidoVenda atual, StatusPedidoVenda novo)
     {
         if (novo == StatusPedidoVenda.Pausado) return true;
         if (novo == StatusPedidoVenda.Cancelado) return true;
-        if (atual == StatusPedidoVenda.Cancelado) return true; // reabertura
-        return NivelStatus(novo) < NivelStatus(atual);          // retrocesso
+        if (novo == StatusPedidoVenda.Reaberto) return true;
+        if (novo == StatusPedidoVenda.Devolvido) return true;
+
+        if (EhStatusDeFluxo(atual) && EhStatusDeFluxo(novo) && NivelFluxo(novo) < NivelFluxo(atual))
+            return true;
+
+        return false;
     }
+
+    /// <summary>
+    /// Indica se o status faz parte do fluxo linear (não é especial).
+    /// </summary>
+    private static bool EhStatusDeFluxo(StatusPedidoVenda status) => status switch
+    {
+        StatusPedidoVenda.Pausado    => false,
+        StatusPedidoVenda.Cancelado  => false,
+        StatusPedidoVenda.Reaberto   => false,
+        StatusPedidoVenda.Devolvido  => false,
+        _ => true
+    };
+
+    /// <summary>
+    /// Indica se o status permite edição dos dados cadastrais do PV.
+    /// Permitido nos status iniciais; bloqueado após produção começar.
+    /// </summary>
+    private static bool StatusPermiteEdicao(StatusPedidoVenda status) => status switch
+    {
+        StatusPedidoVenda.AguardandoNS      => true,
+        StatusPedidoVenda.RecebidoNS        => true,
+        StatusPedidoVenda.AguardandoRetorno => true,
+        StatusPedidoVenda.Liberado          => true,
+        _ => false
+    };
 
     /// <summary>
     /// Mapeia a transição de status para o evento correspondente no histórico.
     /// </summary>
     private static EventoPedidoVenda MapearEvento(StatusPedidoVenda anterior, StatusPedidoVenda novo)
     {
-        if (anterior == StatusPedidoVenda.Cancelado)
+        if (anterior == StatusPedidoVenda.Cancelado && novo == StatusPedidoVenda.Reaberto)
             return EventoPedidoVenda.Reaberto;
 
-        return novo switch
-        {
-            StatusPedidoVenda.EmAndamento when anterior == StatusPedidoVenda.Aguardando => EventoPedidoVenda.Aprovado,
-            StatusPedidoVenda.EmAndamento when anterior == StatusPedidoVenda.Pausado => EventoPedidoVenda.Retomado,
-            StatusPedidoVenda.EmAndamento => EventoPedidoVenda.Retomado,
-            StatusPedidoVenda.Pausado => EventoPedidoVenda.Pausado,
-            StatusPedidoVenda.Cancelado => EventoPedidoVenda.Cancelado,
-            StatusPedidoVenda.Concluido => EventoPedidoVenda.Concluido,
-            StatusPedidoVenda.AguardandoEntrega => EventoPedidoVenda.AguardandoEntrega,
-            StatusPedidoVenda.Entregue => EventoPedidoVenda.Entregue,
-            StatusPedidoVenda.Aguardando => EventoPedidoVenda.Criado,
-            _ => EventoPedidoVenda.Criado
-        };
+        if (anterior == StatusPedidoVenda.Pausado)
+            return EventoPedidoVenda.Retomado;
+
+        if (novo == StatusPedidoVenda.Pausado)    return EventoPedidoVenda.Pausado;
+        if (novo == StatusPedidoVenda.Cancelado)  return EventoPedidoVenda.Cancelado;
+        if (novo == StatusPedidoVenda.Devolvido)  return EventoPedidoVenda.Devolvido;
+
+        if (novo == StatusPedidoVenda.RecebidoNS)        return EventoPedidoVenda.NsRecebido;
+        if (novo == StatusPedidoVenda.AguardandoRetorno) return EventoPedidoVenda.RetornoSolicitado;
+        if (novo == StatusPedidoVenda.Liberado)          return EventoPedidoVenda.Aprovado;
+
+        if (novo == StatusPedidoVenda.Andamento) return EventoPedidoVenda.ProducaoIniciada;
+        if (novo == StatusPedidoVenda.Concluido) return EventoPedidoVenda.ProducaoConcluida;
+        if (novo == StatusPedidoVenda.AEntregar) return EventoPedidoVenda.LiberadoEntrega;
+        if (novo == StatusPedidoVenda.Entregue)  return EventoPedidoVenda.Entregue;
+
+        return EventoPedidoVenda.Criado;
     }
 
     /// <summary>

@@ -2,11 +2,18 @@ namespace Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 /// <summary>
 /// Tipo do Pedido de Venda.
-/// Normal = venda já realizada (status inicial EmAndamento).
-/// VendaFutura = pré-pedido, depende de aprovação externa (status inicial Aguardando).
+/// Define o status inicial e o fluxo que o PV segue.
 /// </summary>
 public enum TipoPedidoVenda
 {
+    /// <summary>
+    /// Venda regular. Inicia em Liberado e segue direto para produção.
+    /// </summary>
     Normal,
-    VendaFutura
+
+    /// <summary>
+    /// Pré-venda (tipicamente para liberar NS antes da aprovação de financiamento).
+    /// Inicia em AguardandoNS, passa por RecebidoNS e AguardandoRetorno antes de ir para Liberado.
+    /// </summary>
+    PreVenda
 }
