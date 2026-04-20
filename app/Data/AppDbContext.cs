@@ -2,12 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.Models.Admin;
 using Api_ArjSys_Tcc.Models.Comercial;
+using Api_ArjSys_Tcc.Models.Producao;
 
 namespace Api_ArjSys_Tcc.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    
+
     // Engenharia
     public DbSet<Produto> Produtos => Set<Produto>();
     public DbSet<EstruturaProduto> EstruturasProdutos => Set<EstruturaProduto>();
@@ -15,7 +16,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<GrupoVinculo> GruposVinculos => Set<GrupoVinculo>();
     public DbSet<ConfiguracaoEngenharia> ConfiguracoesEngenharia => Set<ConfiguracaoEngenharia>();
     public DbSet<PathDocumentos> PathDocumentos => Set<PathDocumentos>();
-    
 
 
 
@@ -33,6 +33,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PedidoVendaItem> PedidosVendaItens => Set<PedidoVendaItem>();
     public DbSet<NumeroSerie> NumerosSerie => Set<NumeroSerie>();
     public DbSet<PedidoVendaHistorico> PedidoVendaHistorico => Set<PedidoVendaHistorico>();
+
+
+
+    // Produção
+    public DbSet<OrdemProducao> OrdensProducao => Set<OrdemProducao>();
+    public DbSet<OrdemProducaoItem> OrdensProducaoItens => Set<OrdemProducaoItem>();
+    public DbSet<OrdemProducaoHistorico> OrdensProducaoHistorico => Set<OrdemProducaoHistorico>();
 
 
 

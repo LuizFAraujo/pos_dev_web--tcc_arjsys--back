@@ -1,0 +1,299 @@
+### =============================================
+### PRODUÇÃO - ORDENS DE PRODUÇÃO
+### =============================================
+### OP Master: OP.AAAA.MM.NNNN — liga PV + Produto raiz
+### OP Filha:  OP.AAAA.MM.NNNN/NNNN — produto da BOM do Master
+### Master e Filhas têm status independentes (Pendente/Andamento/Pausada/Concluida/Cancelada)
+### =============================================
+
+### Listar todas
+GET {{host}}/api/producao/OrdemProducao
+Accept: application/json
+
+### Paginado
+GET {{host}}/api/producao/OrdemProducao?pagina=1&tamanho=5
+Accept: application/json
+
+### Buscar por ID (com itens + filhas se for Master)
+GET {{host}}/api/producao/OrdemProducao/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/producao/OrdemProducao/9999
+Accept: application/json
+
+### Listar OPs de um PV
+GET {{host}}/api/producao/OrdemProducao/pedido/10
+Accept: application/json
+
+
+### =============================================
+### CRIAR MASTER
+### =============================================
+### IDs de produtos BOM: 66=PIC-500, 67=PIC-700, 68=PIC-900, 55=ROT-001, 56=ROT-002, 57=ROT-003
+
+### Criar Master para PV 12 (Liberado) + PIC-500
+POST {{host}}/api/producao/OrdemProducao/master
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 12,
+  "produtoId": 66,
+  "observacoes": "OP Master para o Picador PIC-500 do PV 12"
+}
+
+### Criar Master com Produto sem BOM → 400 (Parafuso id=16 não tem filhos)
+POST {{host}}/api/producao/OrdemProducao/master
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 12,
+  "produtoId": 16
+}
+
+### Criar Master com Produto inexistente → 400
+POST {{host}}/api/producao/OrdemProducao/master
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 12,
+  "produtoId": 9999
+}
+
+### Criar Master com PV inexistente → 400
+POST {{host}}/api/producao/OrdemProducao/master
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 9999,
+  "produtoId": 66
+}
+
+
+### =============================================
+### CRIAR FILHA (em cima de uma Master)
+### =============================================
+### Substitua o {opMasterId} pelo ID da Master recém criada
+
+### Filha para o Rotor (ROT-001, id=55) — está na BOM do PIC-500
+POST {{host}}/api/producao/OrdemProducao/filha
+Content-Type: application/json
+
+{
+  "ordemPaiId": 1,
+  "produtoId": 55,
+  "observacoes": "Filha — Rotor do PIC-500"
+}
+
+### Filha para o Motor (MTR-001, id=31) — está na BOM do PIC-500
+POST {{host}}/api/producao/OrdemProducao/filha
+Content-Type: application/json
+
+{
+  "ordemPaiId": 1,
+  "produtoId": 31,
+  "observacoes": "Filha — Motor 50CV"
+}
+
+### Filha para o Parafuso (PRF-001, id=16) — está na BOM do PIC-500 (qtd=8)
+POST {{host}}/api/producao/OrdemProducao/filha
+Content-Type: application/json
+
+{
+  "ordemPaiId": 1,
+  "produtoId": 16,
+  "observacoes": "Filha — Parafusos de fixação"
+}
+
+### Filha duplicada → 400 (Rotor já criado em Filha anterior)
+POST {{host}}/api/producao/OrdemProducao/filha
+Content-Type: application/json
+
+{
+  "ordemPaiId": 1,
+  "produtoId": 55
+}
+
+### Filha com Produto fora da BOM do Master → 400
+POST {{host}}/api/producao/OrdemProducao/filha
+Content-Type: application/json
+
+{
+  "ordemPaiId": 1,
+  "produtoId": 70
+}
+
+### Filha de Filha → 400 (não pode sub-filha)
+POST {{host}}/api/producao/OrdemProducao/filha
+Content-Type: application/json
+
+{
+  "ordemPaiId": 2,
+  "produtoId": 40
+}
+
+
+### =============================================
+### STATUS DA OP
+### =============================================
+
+### Pendente → Andamento (iniciar produção)
+PATCH {{host}}/api/producao/OrdemProducao/2/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Andamento"
+}
+
+### Andamento → Pausada (justificativa obrigatória)
+PATCH {{host}}/api/producao/OrdemProducao/2/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Pausada",
+  "justificativa": "Aguardando chegada de matéria-prima"
+}
+
+### Pausada sem justificativa → 400
+PATCH {{host}}/api/producao/OrdemProducao/2/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Pausada"
+}
+
+### Pausada → Andamento (retomar, sem justificativa)
+PATCH {{host}}/api/producao/OrdemProducao/2/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Andamento"
+}
+
+### Andamento → Concluida (manual, não precisa justificativa)
+PATCH {{host}}/api/producao/OrdemProducao/2/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluida"
+}
+
+### Tentar sair de Concluida → 400 (terminal)
+PATCH {{host}}/api/producao/OrdemProducao/2/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Andamento"
+}
+
+### Cancelar com justificativa (a partir de Pendente ou Andamento)
+PATCH {{host}}/api/producao/OrdemProducao/3/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Cancelada",
+  "justificativa": "PV cancelado pelo cliente"
+}
+
+### Transição inválida: Pendente → Concluida (pulou Andamento) → 400
+PATCH {{host}}/api/producao/OrdemProducao/4/status
+Content-Type: application/json
+
+{
+  "novoStatus": "Concluida"
+}
+
+
+### =============================================
+### APONTAMENTO DE PRODUÇÃO
+### =============================================
+
+### Apontar 4 un em item (ajustar opId e itemId)
+PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
+Content-Type: application/json
+
+{
+  "quantidade": 4,
+  "observacao": "Primeiro lote parcial"
+}
+
+### Apontar o restante (completa — deve auto-concluir a OP)
+PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
+Content-Type: application/json
+
+{
+  "quantidade": 4
+}
+
+### Apontar ultrapassando o planejado → 400
+PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
+Content-Type: application/json
+
+{
+  "quantidade": 100
+}
+
+### Apontar quantidade zero → 400
+PATCH {{host}}/api/producao/OrdemProducao/2/itens/1/apontar
+Content-Type: application/json
+
+{
+  "quantidade": 0
+}
+
+### Apontar em OP não-Andamento → 400
+PATCH {{host}}/api/producao/OrdemProducao/1/itens/1/apontar
+Content-Type: application/json
+
+{
+  "quantidade": 1
+}
+
+
+### =============================================
+### STATUS DE PRODUÇÃO (consolidado com %)
+### =============================================
+
+### Status detalhado da OP
+GET {{host}}/api/producao/OrdemProducao/2/status-producao
+Accept: application/json
+
+
+### =============================================
+### DIVERGÊNCIA OP × BOM ATUAL
+### =============================================
+
+### Ver diferenças entre OP (snapshot) e BOM atual
+GET {{host}}/api/producao/OrdemProducao/2/divergencia-bom
+Accept: application/json
+
+
+### =============================================
+### HISTÓRICO
+### =============================================
+
+### Eventos da OP
+GET {{host}}/api/producao/OrdemProducao/2/historico
+Accept: application/json
+
+
+### =============================================
+### EDITAR / EXCLUIR
+### =============================================
+
+### Editar observações
+PUT {{host}}/api/producao/OrdemProducao/2
+Content-Type: application/json
+
+{
+  "observacoes": "Observação atualizada"
+}
+
+### Excluir Filha Pendente (sem apontamentos)
+DELETE {{host}}/api/producao/OrdemProducao/4
+
+### Excluir Master com filha em Andamento → 400
+DELETE {{host}}/api/producao/OrdemProducao/1
+
+### Excluir OP em Andamento → 400
+DELETE {{host}}/api/producao/OrdemProducao/2

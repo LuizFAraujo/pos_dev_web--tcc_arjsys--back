@@ -2,6 +2,15 @@
 ### SISTEMA - STATUS
 ### =============================================
 
+### Health check
+GET {{host}}/api/status
+Accept: application/json
+
+
+
+
+###
+
 @HostAddress = http://localhost:7000
 
 GET {{HostAddress}}/api/status

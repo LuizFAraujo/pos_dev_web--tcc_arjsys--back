@@ -1,7 +1,0 @@
-### =============================================
-### SISTEMA - STATUS
-### =============================================
-
-### Health check
-GET {{host}}/api/status
-Accept: application/json
