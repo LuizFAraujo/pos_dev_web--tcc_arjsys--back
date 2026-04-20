@@ -1,0 +1,124 @@
+### =============================================
+### ADMIN - NOTIFICAÇÕES
+### =============================================
+
+### Listar notificações do Comercial (todas)
+GET {{host}}/api/admin/Notificacoes?modulo=Comercial
+Accept: application/json
+
+### Listar só não lidas do Comercial
+GET {{host}}/api/admin/Notificacoes?modulo=Comercial&lidas=false
+Accept: application/json
+
+### Listar só lidas do Comercial
+GET {{host}}/api/admin/Notificacoes?modulo=Comercial&lidas=true
+Accept: application/json
+
+### Listar paginado
+GET {{host}}/api/admin/Notificacoes?modulo=Producao&pagina=1&tamanho=5
+Accept: application/json
+
+### Buscar por ID
+GET {{host}}/api/admin/Notificacoes/1
+Accept: application/json
+
+### Buscar inexistente → 404
+GET {{host}}/api/admin/Notificacoes/9999
+Accept: application/json
+
+### Contagem de não lidas (para badge no front)
+GET {{host}}/api/admin/Notificacoes/nao-lidas/contagem?modulo=Comercial
+Accept: application/json
+
+
+### =============================================
+### CRIAR NOTIFICAÇÃO
+### =============================================
+
+### Criar Info (sem origem)
+POST {{host}}/api/admin/Notificacoes
+Content-Type: application/json
+
+{
+  "moduloDestino": "Comercial",
+  "tipo": "Info",
+  "titulo": "Teste de notificação",
+  "mensagem": "Mensagem de teste manual sem origem rastreada"
+}
+
+### Criar Aviso com origem (rastreabilidade)
+POST {{host}}/api/admin/Notificacoes
+Content-Type: application/json
+
+{
+  "moduloDestino": "Producao",
+  "tipo": "Aviso",
+  "titulo": "PV 16 aguardando produção",
+  "mensagem": "O Pedido de Venda PV.2026.04.0001 foi liberado",
+  "origemTabela": "Comercial_PedidosVenda",
+  "origemId": 16
+}
+
+### Criar Erro
+POST {{host}}/api/admin/Notificacoes
+Content-Type: application/json
+
+{
+  "moduloDestino": "Engenharia",
+  "tipo": "Erro",
+  "titulo": "Falha ao gerar NS",
+  "mensagem": "PV 15 marcado como AguardandoNS há mais de 7 dias"
+}
+
+### Criar Sucesso
+POST {{host}}/api/admin/Notificacoes
+Content-Type: application/json
+
+{
+  "moduloDestino": "Comercial",
+  "tipo": "Sucesso",
+  "titulo": "Entrega confirmada",
+  "mensagem": "PV 1 foi entregue com sucesso"
+}
+
+### Criar sem título → 400
+POST {{host}}/api/admin/Notificacoes
+Content-Type: application/json
+
+{
+  "moduloDestino": "Admin",
+  "tipo": "Info",
+  "titulo": "",
+  "mensagem": "sem título"
+}
+
+### Criar sem mensagem → 400
+POST {{host}}/api/admin/Notificacoes
+Content-Type: application/json
+
+{
+  "moduloDestino": "Admin",
+  "tipo": "Info",
+  "titulo": "título ok",
+  "mensagem": ""
+}
+
+
+### =============================================
+### MARCAR LIDA / DELETE
+### =============================================
+
+### Marcar uma como lida
+PATCH {{host}}/api/admin/Notificacoes/1/lida
+
+### Marcar uma inexistente → 404
+PATCH {{host}}/api/admin/Notificacoes/9999/lida
+
+### Marcar todas as não lidas do Comercial como lidas
+PATCH {{host}}/api/admin/Notificacoes/modulo/Comercial/marcar-todas-lidas
+
+### Deletar uma
+DELETE {{host}}/api/admin/Notificacoes/1
+
+### Deletar inexistente → 404
+DELETE {{host}}/api/admin/Notificacoes/9999

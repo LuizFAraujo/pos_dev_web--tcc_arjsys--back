@@ -69,6 +69,7 @@ builder.Services.AddScoped<PathDocumentosService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<FuncionarioService>();
 builder.Services.AddScoped<PermissaoService>();
+builder.Services.AddScoped<NotificacaoService>();
 builder.Services.AddScoped<AuthService>();
 
 

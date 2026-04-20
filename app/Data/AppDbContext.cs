@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.Models.Admin;
 using Api_ArjSys_Tcc.Models.Comercial;
@@ -24,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Funcionario> Funcionarios => Set<Funcionario>();
     public DbSet<Permissao> Permissoes => Set<Permissao>();
+    public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
 
 
 
