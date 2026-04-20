@@ -1,11 +1,12 @@
 ### =============================================
-### COMERCIAL - NÚMERO DE SÉRIE (v2)
+### COMERCIAL - NÚMERO DE SÉRIE (v3)
 ### =============================================
 ### NS não tem tipo nem status próprios — herda do PV vinculado.
-### Relação 1:1 com PV.
+### Relação 1:1 com PV. Vincula a um Produto BOM (projeto).
+### Criação manual só em PV tipo PreVenda em status AguardandoNS.
 ### =============================================
 
-### Listar todos (com dados do PV)
+### Listar todos (com dados do PV e Produto)
 GET {{host}}/api/comercial/NumeroSerie
 Accept: application/json
 
@@ -36,33 +37,26 @@ Accept: application/json
 
 
 ### =============================================
-### CRIAR NS (1 PV = 1 NS)
+### CRIAR NS (PV PreVenda em AguardandoNS)
 ### =============================================
+### IDs de produtos BOM no seed: 66=PIC-500, 67=PIC-700, 68=PIC-900, 69=EST-3m, 70=EST-5m
+### PV 15 está em AguardandoNS no seed — usar ele pra testar Create
 
-### Criar NS para PV EmAndamento
+### Criar NS com Produto BOM (PV 15, PIC-500)
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 11,
-  "codigoProjeto": "PRJ-2026-001"
+  "pedidoVendaId": 15,
+  "produtoId": 66
 }
 
-### Criar NS para PV Aguardando (válido, ex: pré-pedido de venda futura)
+### Criar NS sem Produto (vincula depois via PUT)
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 12,
-  "codigoProjeto": "PRJ-2026-002"
-}
-
-### Criar NS sem codigoProjeto (opcional)
-POST {{host}}/api/comercial/NumeroSerie
-Content-Type: application/json
-
-{
-  "pedidoVendaId": 13
+  "pedidoVendaId": 15
 }
 
 ### Criar segundo NS pro mesmo PV → 400 (1:1)
@@ -70,24 +64,44 @@ POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 11,
-  "codigoProjeto": "PRJ-2026-DUPLICADO"
+  "pedidoVendaId": 15,
+  "produtoId": 67
 }
 
-### Criar NS para PV Cancelado → 400
+### Criar NS para PV tipo Normal → 400 (só PreVenda aceita Create manual)
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 17
+  "pedidoVendaId": 12,
+  "produtoId": 66
 }
 
-### Criar NS para PV Concluido/Entregue → 400
+### Criar NS para PV PreVenda não-AguardandoNS (PV 13 = AguardandoRetorno) → 400
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 1
+  "pedidoVendaId": 13,
+  "produtoId": 66
+}
+
+### Criar NS com Produto sem BOM (PRF-001, id=16 — comprado, sem filhos) → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "produtoId": 16
+}
+
+### Criar NS com Produto inexistente → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "produtoId": 9999
 }
 
 ### Criar NS para PV inexistente → 400
@@ -95,26 +109,51 @@ POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
 {
-  "pedidoVendaId": 9999
+  "pedidoVendaId": 9999,
+  "produtoId": 66
 }
 
 
 ### =============================================
-### EDITAR NS (engenharia preenche codigoProjeto depois)
+### EDITAR NS (Engenharia vincula/troca o Produto depois)
 ### =============================================
 
-### Atualizar codigoProjeto do NS
+### Atualizar ProdutoId do NS (id=1, trocar pro PIC-700)
 PUT {{host}}/api/comercial/NumeroSerie/1
 Content-Type: application/json
 
 {
-  "codigoProjeto": "PRJ-2026-003"
+  "produtoId": 67
 }
 
-### Limpar codigoProjeto
+### Limpar ProdutoId do NS
 PUT {{host}}/api/comercial/NumeroSerie/1
 Content-Type: application/json
 
 {
-  "codigoProjeto": null
+  "produtoId": null
+}
+
+### Atualizar com Produto sem BOM → 400
+PUT {{host}}/api/comercial/NumeroSerie/1
+Content-Type: application/json
+
+{
+  "produtoId": 16
+}
+
+### Atualizar com Produto inexistente → 400
+PUT {{host}}/api/comercial/NumeroSerie/1
+Content-Type: application/json
+
+{
+  "produtoId": 9999
+}
+
+### Atualizar NS inexistente → 404
+PUT {{host}}/api/comercial/NumeroSerie/9999
+Content-Type: application/json
+
+{
+  "produtoId": 66
 }

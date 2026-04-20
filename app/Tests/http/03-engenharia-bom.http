@@ -18,20 +18,55 @@ Accept: application/json
 GET {{host}}/api/engenharia/Bom/flat?pagina=1&tamanho=5
 Accept: application/json
 
-### Filhos de um produto (Picador 500, id=1)
-GET {{host}}/api/engenharia/Bom/produto/1
+### Filhos de um produto (Picador 500, id=66)
+GET {{host}}/api/engenharia/Bom/produto/66
 Accept: application/json
 
 ### Buscar item por ID
 GET {{host}}/api/engenharia/Bom/1
 Accept: application/json
 
+
+### =============================================
+### EXPLOSÃO DE BOM (recursiva + consolidada)
+### =============================================
+### Retorna 1 linha por item folha com a quantidade total somada de todos os níveis.
+
+### Explosão do PIC-500 (id=66)
+GET {{host}}/api/engenharia/Bom/produto/66/explosao
+Accept: application/json
+
+### Explosão do PIC-700 (id=67)
+GET {{host}}/api/engenharia/Bom/produto/67/explosao
+Accept: application/json
+
+### Explosão do PIC-900 (id=68)
+GET {{host}}/api/engenharia/Bom/produto/68/explosao
+Accept: application/json
+
+### Explosão da Esteira 3m (id=69)
+GET {{host}}/api/engenharia/Bom/produto/69/explosao
+Accept: application/json
+
+### Produto sem BOM → 404 (PRF-001 é comprado, não tem filhos)
+GET {{host}}/api/engenharia/Bom/produto/16/explosao
+Accept: application/json
+
+### Produto inexistente → 404
+GET {{host}}/api/engenharia/Bom/produto/9999/explosao
+Accept: application/json
+
+
+### =============================================
+### CRUD DE ESTRUTURA
+### =============================================
+
 ### Criar item (posição automática)
 POST {{host}}/api/engenharia/Bom
 Content-Type: application/json
 
 {
-  "produtoPaiId": 1,
+  "produtoPaiId": 66,
   "produtoFilhoId": 19,
   "quantidade": 1
 }
@@ -41,18 +76,18 @@ POST {{host}}/api/engenharia/Bom
 Content-Type: application/json
 
 {
-  "produtoPaiId": 1,
+  "produtoPaiId": 66,
   "produtoFilhoId": 4,
   "quantidade": 1
 }
 
-### Criar ciclo → 400 (Rotor é filho do Picador, tentar Picador como filho do Rotor)
+### Criar ciclo → 400 (Rotor 001 é filho do PIC-500, tentar PIC-500 como filho do Rotor)
 POST {{host}}/api/engenharia/Bom
 Content-Type: application/json
 
 {
-  "produtoPaiId": 4,
-  "produtoFilhoId": 1,
+  "produtoPaiId": 49,
+  "produtoFilhoId": 66,
   "quantidade": 1
 }
 
@@ -61,8 +96,8 @@ POST {{host}}/api/engenharia/Bom
 Content-Type: application/json
 
 {
-  "produtoPaiId": 1,
-  "produtoFilhoId": 1,
+  "produtoPaiId": 66,
+  "produtoFilhoId": 66,
   "quantidade": 1
 }
 
@@ -71,7 +106,7 @@ PUT {{host}}/api/engenharia/Bom/17
 Content-Type: application/json
 
 {
-  "produtoPaiId": 1,
+  "produtoPaiId": 66,
   "produtoFilhoId": 19,
   "quantidade": 3,
   "posicao": 90,
@@ -97,6 +132,3 @@ Accept: application/json
 ### Produto sem filhos → 400
 DELETE {{host}}/api/engenharia/Bom/estrutura/25
 Accept: application/json
-
-
-

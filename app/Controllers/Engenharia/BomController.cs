@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 using Api_ArjSys_Tcc.Services.Engenharia;
 
@@ -38,6 +38,21 @@ public class BomController(BomService service) : ControllerBase
     public async Task<ActionResult<List<EstruturaProdutoResponseDTO>>> GetByProdutoId(int produtoPaiId)
     {
         return await _service.GetByProdutoId(produtoPaiId);
+    }
+
+    /// <summary>
+    /// Explosão consolidada da BOM: desce recursivamente em todos os níveis e retorna
+    /// os itens folha com quantidade total somada (cada item aparece 1 única vez).
+    /// </summary>
+    [HttpGet("produto/{produtoPaiId:int}/explosao")]
+    public async Task<ActionResult<BomExplosaoResponseDTO>> GetExplosao(int produtoPaiId)
+    {
+        var resultado = await _service.GetExplosao(produtoPaiId);
+
+        if (resultado == null)
+            return NotFound();
+
+        return resultado;
     }
 
     /// <summary>

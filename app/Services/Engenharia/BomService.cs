@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
@@ -8,6 +8,7 @@ namespace Api_ArjSys_Tcc.Services.Engenharia;
 /// <summary>
 /// Serviço de BOM (Bill of Materials) — estrutura de produtos pai-filho.
 /// Gerencia relações entre produtos com validação de ciclo recursivo e posição automática.
+/// Fornece também a "explosão" da BOM: todos os itens folha consolidados com quantidades totais.
 /// </summary>
 public class BomService(AppDbContext context)
 {
@@ -258,6 +259,107 @@ public class BomService(AppDbContext context)
         return (itens, total);
     }
 
+    /// <summary>
+    /// Retorna a explosão consolidada da BOM de um produto.
+    /// Percorre recursivamente todos os níveis da estrutura, descendo até os itens folha
+    /// (que não têm filhos), multiplicando as quantidades pelo caminho e somando ocorrências
+    /// do mesmo produto em níveis/ramos diferentes. Retorna 1 linha por produto folha com
+    /// a quantidade total consolidada.
+    /// Ex: se Parafuso M8 aparece em 5 subconjuntos com quantidades diferentes, a resposta
+    /// contém 1 única linha com a soma total.
+    /// Retorna null se o produto não existir ou não tiver estrutura.
+    /// </summary>
+    public async Task<BomExplosaoResponseDTO?> GetExplosao(int produtoPaiId)
+    {
+        var produto = await _context.Produtos.FindAsync(produtoPaiId);
+
+        if (produto == null)
+            return null;
+
+        var temBom = await _context.EstruturasProdutos.AnyAsync(e => e.ProdutoPaiId == produtoPaiId);
+        if (!temBom)
+            return null;
+
+        // Carrega toda a estrutura de uma vez (evita N queries recursivas)
+        var todasEstruturas = await _context.EstruturasProdutos
+            .Include(e => e.ProdutoFilho)
+            .ToListAsync();
+
+        var estruturasPorPai = todasEstruturas
+            .GroupBy(e => e.ProdutoPaiId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Consolidado: ProdutoId -> {Produto, QuantidadeTotal}
+        var consolidado = new Dictionary<int, (Produto Produto, decimal Qtd)>();
+        var visitados = new HashSet<int>();
+
+        ExplodirRecursivo(produtoPaiId, 1m, estruturasPorPai, consolidado, visitados);
+
+        var itens = consolidado.Values
+            .Select(v => new BomExplosaoItemDTO
+            {
+                ProdutoId = v.Produto.Id,
+                Codigo = v.Produto.Codigo,
+                Descricao = v.Produto.Descricao,
+                Unidade = v.Produto.Unidade.ToString(),
+                Tipo = v.Produto.Tipo.ToString(),
+                QuantidadeTotal = v.Qtd
+            })
+            .OrderBy(i => i.Codigo)
+            .ToList();
+
+        return new BomExplosaoResponseDTO
+        {
+            ProdutoPaiId = produto.Id,
+            ProdutoPaiCodigo = produto.Codigo,
+            ProdutoPaiDescricao = produto.Descricao,
+            Itens = itens,
+            TotalItens = itens.Count
+        };
+    }
+
+    /// <summary>
+    /// Desce recursivamente pela estrutura.
+    /// Itens folha (sem filhos) são acumulados no consolidado.
+    /// Itens intermediários (com filhos) só têm sua estrutura descida — não aparecem no resultado.
+    /// </summary>
+    private static void ExplodirRecursivo(
+        int produtoId,
+        decimal multiplicador,
+        Dictionary<int, List<EstruturaProduto>> estruturasPorPai,
+        Dictionary<int, (Produto Produto, decimal Qtd)> consolidado,
+        HashSet<int> visitados)
+    {
+        // Proteção contra ciclos em runtime (não deveria acontecer, mas por segurança)
+        if (!visitados.Add(produtoId))
+            return;
+
+        if (!estruturasPorPai.TryGetValue(produtoId, out var filhos))
+        {
+            visitados.Remove(produtoId);
+            return;
+        }
+
+        foreach (var filho in filhos)
+        {
+            var qtdCaminho = multiplicador * filho.Quantidade;
+            var ehFolha = !estruturasPorPai.ContainsKey(filho.ProdutoFilhoId);
+
+            if (ehFolha)
+            {
+                if (consolidado.TryGetValue(filho.ProdutoFilhoId, out var atual))
+                    consolidado[filho.ProdutoFilhoId] = (atual.Produto, atual.Qtd + qtdCaminho);
+                else
+                    consolidado[filho.ProdutoFilhoId] = (filho.ProdutoFilho, qtdCaminho);
+            }
+            else
+            {
+                ExplodirRecursivo(filho.ProdutoFilhoId, qtdCaminho, estruturasPorPai, consolidado, visitados);
+            }
+        }
+
+        visitados.Remove(produtoId);
+    }
 
     private static EstruturaProdutoResponseDTO ToResponseDTO(EstruturaProduto e) => new()
     {

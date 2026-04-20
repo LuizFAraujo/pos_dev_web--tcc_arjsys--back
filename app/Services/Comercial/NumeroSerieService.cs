@@ -11,7 +11,8 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// NS não tem tipo nem status próprios — herda do PV vinculado (exibição readonly).
 /// Relação 1:1 com PV.
 /// Criação manual só para PV tipo PreVenda em status AguardandoNS.
-/// PV tipo Normal recebe NS automaticamente via Ordem de Produção (Fase 3).
+/// PV tipo Normal recebe NS automaticamente via Ordem de Produção (Fase 3b).
+/// Produto vinculado deve ser BOM (ter pelo menos 1 filho em EstruturasProdutos).
 /// </summary>
 public class NumeroSerieService(AppDbContext context)
 {
@@ -21,7 +22,7 @@ public class NumeroSerieService(AppDbContext context)
     private const int AnoFundacao = 1966;
 
     /// <summary>
-    /// Lista todos os NS com dados do PV vinculado. Suporta paginação.
+    /// Lista todos os NS com dados do PV e Produto vinculados. Suporta paginação.
     /// </summary>
     public async Task<List<NumeroSerieResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
     {
@@ -29,6 +30,7 @@ public class NumeroSerieService(AppDbContext context)
             .Include(n => n.PedidoVenda)
                 .ThenInclude(p => p.Cliente)
                     .ThenInclude(c => c.Pessoa)
+            .Include(n => n.Produto)
             .OrderByDescending(n => n.CriadoEm);
 
         List<NumeroSerie> lista;
@@ -42,7 +44,7 @@ public class NumeroSerieService(AppDbContext context)
     }
 
     /// <summary>
-    /// Busca NS por ID com dados do PV vinculado.
+    /// Busca NS por ID com dados do PV e Produto vinculados.
     /// </summary>
     public async Task<NumeroSerieResponseDTO?> GetById(int id)
     {
@@ -50,6 +52,7 @@ public class NumeroSerieService(AppDbContext context)
             .Include(n => n.PedidoVenda)
                 .ThenInclude(p => p.Cliente)
                     .ThenInclude(c => c.Pessoa)
+            .Include(n => n.Produto)
             .FirstOrDefaultAsync(n => n.Id == id);
 
         return ns == null ? null : ToResponseDTO(ns);
@@ -64,6 +67,7 @@ public class NumeroSerieService(AppDbContext context)
             .Include(n => n.PedidoVenda)
                 .ThenInclude(p => p.Cliente)
                     .ThenInclude(c => c.Pessoa)
+            .Include(n => n.Produto)
             .FirstOrDefaultAsync(n => n.PedidoVendaId == pedidoId);
 
         return ns == null ? null : ToResponseDTO(ns);
@@ -73,8 +77,8 @@ public class NumeroSerieService(AppDbContext context)
     /// Cria NS vinculado a um PV. Regras:
     /// - PV deve ser do tipo PreVenda;
     /// - PV deve estar em status AguardandoNS;
-    /// - 1 PV = 1 NS (rejeita se já existe NS vinculado).
-    /// PV tipo Normal não tem criação manual — NS é gerado via Ordem de Produção.
+    /// - 1 PV = 1 NS (rejeita se já existe NS vinculado);
+    /// - Se ProdutoId informado, Produto deve existir e ter BOM.
     /// </summary>
     public async Task<(NumeroSerieResponseDTO? Item, string? Erro)> Create(NumeroSerieCreateDTO dto)
     {
@@ -97,25 +101,34 @@ public class NumeroSerieService(AppDbContext context)
         if (jaExiste)
             return (null, "Este pedido já possui um Número de Série vinculado");
 
+        if (dto.ProdutoId.HasValue)
+        {
+            var erroProduto = await ValidarProdutoBom(dto.ProdutoId.Value);
+            if (erroProduto != null)
+                return (null, erroProduto);
+        }
+
         var codigo = await GerarCodigo();
 
         var ns = new NumeroSerie
         {
             Codigo = codigo,
             PedidoVendaId = dto.PedidoVendaId,
-            CodigoProjeto = string.IsNullOrWhiteSpace(dto.CodigoProjeto) ? null : dto.CodigoProjeto.Trim(),
+            ProdutoId = dto.ProdutoId,
             CriadoEm = DateTime.UtcNow
         };
 
         _context.NumerosSerie.Add(ns);
         await _context.SaveChangesAsync();
 
-        ns.PedidoVenda = pedido;
-        return (ToResponseDTO(ns), null);
+        // Recarrega com includes pra response
+        return await GetById(ns.Id) is { } response
+            ? (response, null)
+            : (null, "Erro ao recarregar NS criado");
     }
 
     /// <summary>
-    /// Atualiza dados do NS (apenas campos próprios do NS — o PV é readonly aqui).
+    /// Atualiza o Produto vinculado ao NS. Valida que o Produto tem BOM.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, NumeroSerieUpdateDTO dto)
     {
@@ -124,11 +137,41 @@ public class NumeroSerieService(AppDbContext context)
         if (ns == null)
             return (false, null);
 
-        ns.CodigoProjeto = string.IsNullOrWhiteSpace(dto.CodigoProjeto) ? null : dto.CodigoProjeto.Trim();
+        if (dto.ProdutoId.HasValue)
+        {
+            var erroProduto = await ValidarProdutoBom(dto.ProdutoId.Value);
+            if (erroProduto != null)
+                return (false, erroProduto);
+        }
+
+        ns.ProdutoId = dto.ProdutoId;
         ns.ModificadoEm = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return (true, null);
+    }
+
+    /// <summary>
+    /// Valida que o produto existe e é um BOM (tem pelo menos 1 filho em EstruturasProdutos).
+    /// Retorna null se OK, ou mensagem de erro se inválido.
+    /// </summary>
+    private async Task<string?> ValidarProdutoBom(int produtoId)
+    {
+        var produto = await _context.Produtos.FindAsync(produtoId);
+
+        if (produto == null)
+            return "Produto não encontrado";
+
+        if (!produto.Ativo)
+            return "Produto está inativo";
+
+        var temBom = await _context.EstruturasProdutos
+            .AnyAsync(e => e.ProdutoPaiId == produtoId);
+
+        if (!temBom)
+            return "Produto precisa ter estrutura (BOM) para ser vinculado ao NS";
+
+        return null;
     }
 
     /// <summary>
@@ -161,7 +204,7 @@ public class NumeroSerieService(AppDbContext context)
     }
 
     /// <summary>
-    /// Converte entidade em DTO de resposta, incluindo dados readonly do PV.
+    /// Converte entidade em DTO de resposta, incluindo dados readonly do PV e do Produto.
     /// </summary>
     private static NumeroSerieResponseDTO ToResponseDTO(NumeroSerie n) => new()
     {
@@ -173,7 +216,9 @@ public class NumeroSerieService(AppDbContext context)
         PvTipo = n.PedidoVenda?.Tipo ?? TipoPedidoVenda.Normal,
         PvStatus = n.PedidoVenda?.Status ?? StatusPedidoVenda.Liberado,
         PvDataEntrega = n.PedidoVenda?.DataEntrega,
-        CodigoProjeto = n.CodigoProjeto,
+        ProdutoId = n.ProdutoId,
+        ProdutoCodigo = n.Produto?.Codigo,
+        ProdutoDescricao = n.Produto?.Descricao,
         CriadoEm = n.CriadoEm,
         ModificadoEm = n.ModificadoEm
     };

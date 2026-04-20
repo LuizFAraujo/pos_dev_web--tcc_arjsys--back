@@ -9,6 +9,7 @@ public class NumeroSerieConfiguration : IEntityTypeConfiguration<NumeroSerie>
     /// <summary>
     /// Configuração EF do Número de Série.
     /// Relação 1:1 com PV garantida por índice único em PedidoVendaId.
+    /// Produto é opcional (preenchido pela Engenharia conforme define o projeto).
     /// </summary>
     public void Configure(EntityTypeBuilder<NumeroSerie> builder)
     {
@@ -18,11 +19,15 @@ public class NumeroSerieConfiguration : IEntityTypeConfiguration<NumeroSerie>
         builder.HasIndex(n => n.PedidoVendaId).IsUnique();
 
         builder.Property(n => n.Codigo).HasMaxLength(20);
-        builder.Property(n => n.CodigoProjeto).HasMaxLength(50);
 
         builder.HasOne(n => n.PedidoVenda)
                .WithMany()
                .HasForeignKey(n => n.PedidoVendaId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(n => n.Produto)
+               .WithMany()
+               .HasForeignKey(n => n.ProdutoId)
                .OnDelete(DeleteBehavior.Restrict);
     }
 }
