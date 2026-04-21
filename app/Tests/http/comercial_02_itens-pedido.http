@@ -1,104 +1,110 @@
 ### =============================================
-### COMERCIAL - ITENS DO PEDIDO (v2 - descrição livre)
+### COMERCIAL - ITENS DO PEDIDO DE VENDA
+### =============================================
+### Endpoints individuais (mantidos, coexistem com PUT consolidado em /PedidoVenda/{id}).
+### Em status INICIAL (AguardandoNS/RecebidoNS/AguardandoRetorno/Liberado): livre.
+### Em status AVANÇADO (Andamento/Concluido/AEntregar/Pausado): justificativa obrigatória.
+###   - POST/PUT: body ganha "justificativa"
+###   - DELETE: query param ?justificativa=...
+### Em status TERMINAL (Entregue/Devolvido/Cancelado/Reaberto): bloqueado.
 ### =============================================
 
 ### Listar itens de um PV
-GET {{host}}/api/comercial/PedidoVenda/1/itens
-Accept: application/json
-
-### Listar itens de PV inexistente → lista vazia
-GET {{host}}/api/comercial/PedidoVenda/9999/itens
+GET {{host}}/api/comercial/PedidoVenda/12/itens
 Accept: application/json
 
 
 ### =============================================
-### ADICIONAR ITENS (descrição livre)
+### STATUS INICIAL (PV 12 = Liberado) — sem justificativa
 ### =============================================
 
-### Adicionar item em PV EmAndamento (ajustar ID do PV)
-POST {{host}}/api/comercial/PedidoVenda/21/itens
-Content-Type: application/json
-
-{
-  "quantidade": 1,
-  "descricao": "Motor Trifásico 150KW",
-  "observacao": "Marca WEG"
-}
-
-### Adicionar segundo item
-POST {{host}}/api/comercial/PedidoVenda/21/itens
+### Adicionar item
+POST {{host}}/api/comercial/PedidoVenda/12/itens
 Content-Type: application/json
 
 {
   "quantidade": 2,
-  "descricao": "Redutor mecânico eixo paralelo",
-  "observacao": "Relação 1:30"
+  "descricao": "Kit de facas",
+  "observacao": "aço HSS"
 }
 
-### Adicionar item sem observação (opcional)
-POST {{host}}/api/comercial/PedidoVenda/21/itens
+### Atualizar item (ajustar ID)
+PUT {{host}}/api/comercial/PedidoVenda/12/itens/20
+Content-Type: application/json
+
+{
+  "quantidade": 3,
+  "descricao": "Kit de facas atualizado"
+}
+
+### Remover item
+DELETE {{host}}/api/comercial/PedidoVenda/12/itens/20
+
+
+### =============================================
+### STATUS AVANÇADO (PV 11 = Andamento) — justificativa obrigatória
+### =============================================
+
+### Adicionar item — justificativa no body
+POST {{host}}/api/comercial/PedidoVenda/11/itens
 Content-Type: application/json
 
 {
   "quantidade": 1,
-  "descricao": "Conjunto de acoplamento"
+  "descricao": "Calha extra solicitada",
+  "justificativa": "Cliente pediu aumento da capacidade de entrada"
 }
 
-
-### =============================================
-### VALIDAÇÕES
-### =============================================
-
-### Quantidade zero → 400
-POST {{host}}/api/comercial/PedidoVenda/21/itens
-Content-Type: application/json
-
-{
-  "quantidade": 0,
-  "descricao": "Teste qtde zero"
-}
-
-### Descrição vazia → 400
-POST {{host}}/api/comercial/PedidoVenda/21/itens
+### ERRO — sem justificativa em Andamento
+POST {{host}}/api/comercial/PedidoVenda/11/itens
 Content-Type: application/json
 
 {
   "quantidade": 1,
-  "descricao": ""
+  "descricao": "tentativa sem justificativa"
 }
 
-### Adicionar item em PV Entregue → 400
+### Atualizar item (ajustar ID) com justificativa
+PUT {{host}}/api/comercial/PedidoVenda/11/itens/25
+Content-Type: application/json
+
+{
+  "quantidade": 5,
+  "descricao": "Motor upgrade",
+  "justificativa": "Cliente trocou pelo motor 75cv"
+}
+
+### Remover item — justificativa via query param
+DELETE {{host}}/api/comercial/PedidoVenda/11/itens/25?justificativa=Cliente%20removeu%20do%20pedido
+
+### ERRO — DELETE em Andamento sem justificativa
+DELETE {{host}}/api/comercial/PedidoVenda/11/itens/26
+
+
+### =============================================
+### STATUS TERMINAL (PV 1 = Entregue) — bloqueado
+### =============================================
+
+### ERRO — adicionar item em Entregue → 400
 POST {{host}}/api/comercial/PedidoVenda/1/itens
 Content-Type: application/json
 
 {
   "quantidade": 1,
-  "descricao": "Não permitido"
+  "descricao": "qualquer",
+  "justificativa": "qualquer"
 }
 
-### PV inexistente → 400
-POST {{host}}/api/comercial/PedidoVenda/9999/itens
-Content-Type: application/json
-
-{
-  "quantidade": 1,
-  "descricao": "Teste"
-}
+### ERRO — DELETE em PV Cancelado → 400
+DELETE {{host}}/api/comercial/PedidoVenda/5/itens/8?justificativa=qualquer
 
 
 ### =============================================
-### ATUALIZAR E DELETAR
+### VER NOTIFICAÇÕES GERADAS PELAS ALTERAÇÕES
 ### =============================================
+GET {{host}}/api/admin/Notificacoes?modulo=Engenharia
+GET {{host}}/api/admin/Notificacoes?modulo=Producao
+GET {{host}}/api/admin/Notificacoes?modulo=Almoxarifado
 
-### Atualizar item (ajustar IDs)
-PUT {{host}}/api/comercial/PedidoVenda/21/itens/1
-Content-Type: application/json
-
-{
-  "quantidade": 4,
-  "descricao": "Motor Trifásico 200KW",
-  "observacao": "Upgrade solicitado pelo cliente"
-}
-
-### Deletar item (ajustar IDs)
-DELETE {{host}}/api/comercial/PedidoVenda/21/itens/1
+### Histórico do PV com eventos ItensAlterados
+GET {{host}}/api/comercial/PedidoVenda/11/historico

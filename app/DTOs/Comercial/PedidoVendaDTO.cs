@@ -6,9 +6,10 @@ namespace Api_ArjSys_Tcc.DTOs.Comercial;
 public partial class PedidoVendaDTO { }
 
 /// <summary>
-/// Entrada — criar Pedido de Venda.
+/// Entrada — criar Pedido de Venda com itens em chamada única (atômica).
 /// Tipo obrigatório: Normal (status inicial Liberado) ou PreVenda (status inicial AguardandoNS).
 /// Data da venda opcional — default DateTime.UtcNow.
+/// Lista de itens: OBRIGATÓRIA ter pelo menos 1.
 /// </summary>
 public class PedidoVendaCreateDTO
 {
@@ -26,6 +27,49 @@ public class PedidoVendaCreateDTO
 
     /// <summary>Observações do pedido (opcional)</summary>
     public string? Observacoes { get; set; }
+
+    /// <summary>
+    /// Itens do pedido. OBRIGATÓRIO ter pelo menos 1 item.
+    /// Lista vazia ou null → 400.
+    /// </summary>
+    public List<PedidoVendaItemCreateDTO> Itens { get; set; } = [];
+}
+
+/// <summary>
+/// Entrada — atualizar PV + itens em chamada única com diff sincronizado.
+/// Itens com Id são atualizados; sem Id são criados; ausentes da lista são deletados.
+/// Em status avançado (Andamento/Concluido/AEntregar/Pausado) justificativa é obrigatória.
+/// Dispara evento ItensAlterados no histórico e notifica Engenharia/Produção/Almoxarifado.
+/// </summary>
+public class PedidoVendaUpdateDTO
+{
+    /// <summary>FK para o Cliente</summary>
+    public int ClienteId { get; set; }
+
+    /// <summary>Normal ou PreVenda</summary>
+    public TipoPedidoVenda Tipo { get; set; } = TipoPedidoVenda.Normal;
+
+    /// <summary>Data da venda (opcional)</summary>
+    public DateTime? Data { get; set; }
+
+    /// <summary>Data combinada de entrega (opcional)</summary>
+    public DateTime? DataEntrega { get; set; }
+
+    /// <summary>Observações do pedido (opcional)</summary>
+    public string? Observacoes { get; set; }
+
+    /// <summary>
+    /// Lista completa de itens do pedido (estado final desejado).
+    /// OBRIGATÓRIO ter pelo menos 1 item.
+    /// </summary>
+    public List<PedidoVendaItemUpsertDTO> Itens { get; set; } = [];
+
+    /// <summary>
+    /// Justificativa da alteração. Obrigatória quando o PV está em
+    /// Andamento, Concluido, AEntregar ou Pausado.
+    /// Ignorada em status iniciais.
+    /// </summary>
+    public string? Justificativa { get; set; }
 }
 
 /// <summary>

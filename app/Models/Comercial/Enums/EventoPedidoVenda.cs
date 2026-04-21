@@ -44,5 +44,8 @@ public enum EventoPedidoVenda
     Reaberto,
 
     /// <summary>PV devolvido (só pode vir de Entregue).</summary>
-    Devolvido
+    Devolvido,
+
+    /// <summary>Itens do PV alterados em status avançado (com justificativa obrigatória).</summary>
+    ItensAlterados
 }

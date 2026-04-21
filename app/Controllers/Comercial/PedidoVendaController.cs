@@ -35,7 +35,8 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Cria Pedido de Venda. Tipo obrigatório (Normal ou PreVenda).
+    /// Cria Pedido de Venda com itens em chamada única (atômica).
+    /// Tipo obrigatório (Normal ou PreVenda). Lista de itens obrigatória com pelo menos 1 item.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<PedidoVendaResponseDTO>> Create(PedidoVendaCreateDTO dto)
@@ -49,21 +50,24 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Atualiza dados cadastrais do PV. Permitido apenas nos status iniciais do fluxo
-    /// (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado).
+    /// Atualiza PV + itens em chamada única com diff sincronizado (atômica).
+    /// Itens com Id são atualizados; sem Id são criados; ausentes da lista são removidos.
+    /// Em status avançado (Andamento/Concluido/AEntregar/Pausado) justificativa é obrigatória,
+    /// registra evento ItensAlterados e notifica Engenharia/Produção/Almoxarifado.
+    /// Retorna 200 OK com o PV completo atualizado.
     /// </summary>
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, PedidoVendaCreateDTO dto)
+    public async Task<ActionResult<PedidoVendaResponseDTO>> Update(int id, PedidoVendaUpdateDTO dto)
     {
-        var (sucesso, erro) = await _service.Update(id, dto);
+        var (atualizado, erro) = await _service.Update(id, dto);
 
         if (erro != null)
             return BadRequest(new { erro });
 
-        if (!sucesso)
+        if (atualizado == null)
             return NotFound();
 
-        return NoContent();
+        return Ok(atualizado);
     }
 
     /// <summary>

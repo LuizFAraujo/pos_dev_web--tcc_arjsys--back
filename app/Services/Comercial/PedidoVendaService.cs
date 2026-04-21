@@ -12,21 +12,28 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 
 /// <summary>
 /// Serviço do Pedido de Venda.
-/// Gerencia CRUD, transições de status com justificativa condicional e histórico de eventos.
+/// Gerencia CRUD, transições de status, histórico de eventos, e chamada única (Create/Update)
+/// que cria/atualiza o PV + itens de forma atômica (transação única).
+///
 /// Fluxo depende do Tipo:
 ///   Normal   → Liberado → Andamento → Concluido → AEntregar → Entregue
 ///   PreVenda → AguardandoNS → RecebidoNS → AguardandoRetorno → Liberado → (fluxo Normal)
 /// Status especiais: Pausado, Cancelado, Reaberto, Devolvido.
 ///
 /// Integrações automáticas:
-/// - PV → Liberado: notifica módulo Producao (novo PV para programar);
-/// - PV → Entregue: bloqueia se existe OP Master não finalizada;
-/// - PV → Cancelado/Pausado: notifica módulo Producao (pode ter OPs ativas).
+/// - PV → Liberado: notifica módulo Producao
+/// - PV → Entregue: bloqueia se existe OP Master não finalizada
+/// - PV → Cancelado/Pausado: notifica Producao (com OPs ativas)
+/// - Itens alterados em status avançado: registra evento ItensAlterados + notifica Eng/Prod/Almox
 /// </summary>
 public class PedidoVendaService(AppDbContext context, NotificacaoService notificacoes)
 {
     private readonly AppDbContext _context = context;
     private readonly NotificacaoService _notificacoes = notificacoes;
+
+    // ========================================================================
+    // LISTAGEM
+    // ========================================================================
 
     public async Task<List<PedidoVendaResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
     {
@@ -74,13 +81,32 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         return ToResponseDTO(pedido, itens);
     }
 
+    // ========================================================================
+    // CREATE — atômico, PV + itens numa transação
+    // ========================================================================
+
     /// <summary>
-    /// Cria Pedido de Venda. Status inicial por tipo:
-    ///   Normal   → Liberado (notifica Producao)
-    ///   PreVenda → AguardandoNS
+    /// Cria PV com itens em uma única chamada atômica.
+    /// OBRIGATÓRIO: lista de itens com pelo menos 1 item.
+    /// Se qualquer validação falhar, transação é revertida (PV não fica criado).
     /// </summary>
     public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Create(PedidoVendaCreateDTO dto)
     {
+        // Validação 1: itens obrigatórios
+        if (dto.Itens == null || dto.Itens.Count == 0)
+            return (null, "Pedido de venda deve ter ao menos um item.");
+
+        // Validação 2: cada item precisa ter dados válidos
+        for (int i = 0; i < dto.Itens.Count; i++)
+        {
+            var item = dto.Itens[i];
+            if (item.Quantidade <= 0)
+                return (null, $"Item {i + 1}: quantidade deve ser maior que zero.");
+            if (string.IsNullOrWhiteSpace(item.Descricao))
+                return (null, $"Item {i + 1}: descrição é obrigatória.");
+        }
+
+        // Validação 3: cliente existe
         var cliente = await _context.Clientes
             .Include(c => c.Pessoa)
             .FirstOrDefaultAsync(c => c.Id == dto.ClienteId);
@@ -88,6 +114,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         if (cliente == null)
             return (null, "Cliente não encontrado");
 
+        // Status inicial por tipo
         var statusInicial = dto.Tipo == TipoPedidoVenda.PreVenda
             ? StatusPedidoVenda.AguardandoNS
             : StatusPedidoVenda.Liberado;
@@ -95,58 +122,232 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         var codigo = await GerarCodigo();
         var agora = DateTime.UtcNow;
 
-        var pedido = new PedidoVenda
+        // Transação: PV + itens + histórico, tudo junto ou nada
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
+        try
         {
-            Codigo = codigo,
-            ClienteId = dto.ClienteId,
-            Tipo = dto.Tipo,
-            Status = statusInicial,
-            Data = dto.Data ?? agora,
-            DataEntrega = dto.DataEntrega,
-            Observacoes = dto.Observacoes,
-            CriadoEm = agora
-        };
+            var pedido = new PedidoVenda
+            {
+                Codigo = codigo,
+                ClienteId = dto.ClienteId,
+                Tipo = dto.Tipo,
+                Status = statusInicial,
+                Data = dto.Data ?? agora,
+                DataEntrega = dto.DataEntrega,
+                Observacoes = dto.Observacoes,
+                CriadoEm = agora
+            };
 
-        _context.PedidosVenda.Add(pedido);
-        await _context.SaveChangesAsync();
+            _context.PedidosVenda.Add(pedido);
+            await _context.SaveChangesAsync();
 
-        RegistrarEvento(pedido.Id, EventoPedidoVenda.Criado, null, statusInicial, null);
-        await _context.SaveChangesAsync();
+            // Cria itens
+            foreach (var itemDto in dto.Itens)
+            {
+                _context.PedidosVendaItens.Add(new PedidoVendaItem
+                {
+                    PedidoVendaId = pedido.Id,
+                    Quantidade = itemDto.Quantidade,
+                    Descricao = itemDto.Descricao.Trim(),
+                    Observacao = string.IsNullOrWhiteSpace(itemDto.Observacao) ? null : itemDto.Observacao.Trim(),
+                    CriadoEm = agora
+                });
+            }
 
-        pedido.Cliente = cliente;
+            // Evento inicial no histórico
+            RegistrarEvento(pedido.Id, EventoPedidoVenda.Criado, null, statusInicial, null, null);
 
-        // Notifica Producao se já nasceu Liberado (Normal)
-        if (statusInicial == StatusPedidoVenda.Liberado)
-            await NotificarProducaoPvLiberado(pedido);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
-        return (ToResponseDTO(pedido, []), null);
+            pedido.Cliente = cliente;
+
+            // Notifica Producao se já nasceu Liberado (Normal)
+            if (statusInicial == StatusPedidoVenda.Liberado)
+                await NotificarProducaoPvLiberado(pedido);
+
+            // Recarrega com itens pra retornar
+            var itensCriados = await _context.PedidosVendaItens
+                .Where(i => i.PedidoVendaId == pedido.Id)
+                .OrderBy(i => i.Id)
+                .ToListAsync();
+
+            return (ToResponseDTO(pedido, itensCriados), null);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return (null, $"Erro ao criar pedido: {ex.Message}");
+        }
     }
 
-    public async Task<(bool Sucesso, string? Erro)> Update(int id, PedidoVendaCreateDTO dto)
+    // ========================================================================
+    // UPDATE — atômico, cabeçalho + diff de itens numa transação
+    // ========================================================================
+
+    /// <summary>
+    /// Atualiza PV + itens em uma única chamada com diff sincronizado.
+    /// Itens com Id preenchido: atualiza. Sem Id: cria. Ausentes da lista: deleta.
+    ///
+    /// Regras de status:
+    /// - Status iniciais (AguardandoNS/RecebidoNS/AguardandoRetorno/Liberado): livre, sem justificativa
+    /// - Status avançados (Andamento/Concluido/AEntregar/Pausado): justificativa OBRIGATÓRIA,
+    ///   gera evento ItensAlterados no histórico e notifica Engenharia/Produção/Almoxarifado
+    /// - Status terminais (Entregue/Devolvido/Cancelado/Reaberto): bloqueado
+    /// </summary>
+    public async Task<(PedidoVendaResponseDTO? Item, string? Erro)> Update(int id, PedidoVendaUpdateDTO dto)
     {
-        var pedido = await _context.PedidosVenda.FindAsync(id);
+        // Validação 1: itens obrigatórios
+        if (dto.Itens == null || dto.Itens.Count == 0)
+            return (null, "Pedido de venda deve ter ao menos um item.");
+
+        // Validação 2: cada item
+        for (int i = 0; i < dto.Itens.Count; i++)
+        {
+            var it = dto.Itens[i];
+            if (it.Quantidade <= 0)
+                return (null, $"Item {i + 1}: quantidade deve ser maior que zero.");
+            if (string.IsNullOrWhiteSpace(it.Descricao))
+                return (null, $"Item {i + 1}: descrição é obrigatória.");
+        }
+
+        // Busca PV
+        var pedido = await _context.PedidosVenda
+            .Include(p => p.Cliente).ThenInclude(c => c.Pessoa)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (pedido == null)
-            return (false, null);
+            return (null, null);
 
-        if (!StatusPermiteEdicao(pedido.Status))
-            return (false, "Só é possível editar o PV nos status iniciais do fluxo (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado)");
+        // Validação 3: status permite edição
+        if (!StatusPermiteEdicao(pedido.Status) && !StatusPermiteEdicaoComJustificativa(pedido.Status))
+            return (null, $"Pedido com status {pedido.Status} não aceita edição.");
 
-        var cliente = await _context.Clientes.FindAsync(dto.ClienteId);
+        // Validação 4: justificativa obrigatória em status avançado
+        var statusAvancado = StatusPermiteEdicaoComJustificativa(pedido.Status);
+        var justificativa = dto.Justificativa?.Trim();
+
+        if (statusAvancado && string.IsNullOrWhiteSpace(justificativa))
+            return (null, $"Justificativa é obrigatória para editar pedido em status {pedido.Status}.");
+
+        // Validação 5: cliente existe
+        var cliente = await _context.Clientes
+            .Include(c => c.Pessoa)
+            .FirstOrDefaultAsync(c => c.Id == dto.ClienteId);
 
         if (cliente == null)
-            return (false, "Cliente não encontrado");
+            return (null, "Cliente não encontrado");
 
-        pedido.ClienteId = dto.ClienteId;
-        pedido.Tipo = dto.Tipo;
-        pedido.Data = dto.Data ?? pedido.Data;
-        pedido.DataEntrega = dto.DataEntrega;
-        pedido.Observacoes = dto.Observacoes;
-        pedido.ModificadoEm = DateTime.UtcNow;
+        // Transação
+        using var transaction = await _context.Database.BeginTransactionAsync();
 
-        await _context.SaveChangesAsync();
-        return (true, null);
+        try
+        {
+            // Cabeçalho
+            pedido.ClienteId = dto.ClienteId;
+            pedido.Tipo = dto.Tipo;
+            pedido.Data = dto.Data ?? pedido.Data;
+            pedido.DataEntrega = dto.DataEntrega;
+            pedido.Observacoes = dto.Observacoes;
+            pedido.ModificadoEm = DateTime.UtcNow;
+
+            // Diff de itens
+            var itensExistentes = await _context.PedidosVendaItens
+                .Where(i => i.PedidoVendaId == id)
+                .ToListAsync();
+
+            int qtdAdicionados = 0;
+            int qtdRemovidos = 0;
+            int qtdAlterados = 0;
+
+            // IDs no payload (itens com Id válido)
+            var idsNoPayload = dto.Itens
+                .Where(x => x.Id.HasValue && x.Id.Value > 0)
+                .Select(x => x.Id!.Value)
+                .ToHashSet();
+
+            // Remove os que não estão no payload
+            foreach (var existente in itensExistentes)
+            {
+                if (!idsNoPayload.Contains(existente.Id))
+                {
+                    _context.PedidosVendaItens.Remove(existente);
+                    qtdRemovidos++;
+                }
+            }
+
+            // Processa payload: update ou insert
+            foreach (var itemDto in dto.Itens)
+            {
+                if (itemDto.Id.HasValue && itemDto.Id.Value > 0)
+                {
+                    var existente = itensExistentes.FirstOrDefault(x => x.Id == itemDto.Id.Value);
+                    if (existente == null)
+                        return (null, $"Item {itemDto.Id} não pertence a este pedido.");
+
+                    var mudou = existente.Quantidade != itemDto.Quantidade
+                             || existente.Descricao != itemDto.Descricao.Trim()
+                             || (existente.Observacao ?? "") != (itemDto.Observacao?.Trim() ?? "");
+
+                    if (mudou)
+                    {
+                        existente.Quantidade = itemDto.Quantidade;
+                        existente.Descricao = itemDto.Descricao.Trim();
+                        existente.Observacao = string.IsNullOrWhiteSpace(itemDto.Observacao) ? null : itemDto.Observacao.Trim();
+                        existente.ModificadoEm = DateTime.UtcNow;
+                        qtdAlterados++;
+                    }
+                }
+                else
+                {
+                    _context.PedidosVendaItens.Add(new PedidoVendaItem
+                    {
+                        PedidoVendaId = id,
+                        Quantidade = itemDto.Quantidade,
+                        Descricao = itemDto.Descricao.Trim(),
+                        Observacao = string.IsNullOrWhiteSpace(itemDto.Observacao) ? null : itemDto.Observacao.Trim(),
+                        CriadoEm = DateTime.UtcNow
+                    });
+                    qtdAdicionados++;
+                }
+            }
+
+            bool houveMudancaItens = qtdAdicionados > 0 || qtdRemovidos > 0 || qtdAlterados > 0;
+
+            // Evento + notificação em status avançado
+            if (statusAvancado && houveMudancaItens)
+            {
+                var detalhe = $"+{qtdAdicionados} adicionados, -{qtdRemovidos} removidos, {qtdAlterados} alterados";
+                RegistrarEvento(id, EventoPedidoVenda.ItensAlterados, pedido.Status, pedido.Status, justificativa, detalhe);
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // Notificações multi-setor em status avançado
+            if (statusAvancado && houveMudancaItens)
+                await NotificarEdicaoItensStatusAvancado(pedido, justificativa!, pedido.Status);
+
+            // Carrega resposta
+            var itensAtualizados = await _context.PedidosVendaItens
+                .Where(i => i.PedidoVendaId == id)
+                .OrderBy(i => i.Id)
+                .ToListAsync();
+
+            pedido.Cliente = cliente;
+            return (ToResponseDTO(pedido, itensAtualizados), null);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return (null, $"Erro ao atualizar pedido: {ex.Message}");
+        }
     }
+
+    // ========================================================================
+    // ALTERAR STATUS
+    // ========================================================================
 
     /// <summary>
     /// Altera status do PV com validações + integração com Produção:
@@ -196,11 +397,10 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         pedido.ModificadoEm = DateTime.UtcNow;
 
         var evento = MapearEvento(statusAnterior, novoStatus);
-        RegistrarEvento(id, evento, statusAnterior, novoStatus, justificativa);
+        RegistrarEvento(id, evento, statusAnterior, novoStatus, justificativa, null);
 
         await _context.SaveChangesAsync();
 
-        // Notificações automáticas
         if (novoStatus == StatusPedidoVenda.Liberado)
             await NotificarProducaoPvLiberado(pedido);
         else if (novoStatus == StatusPedidoVenda.Cancelado)
@@ -210,6 +410,10 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
 
         return (true, null);
     }
+
+    // ========================================================================
+    // DELETE
+    // ========================================================================
 
     public async Task<(bool Sucesso, string? Erro)> Delete(int id)
     {
@@ -259,7 +463,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
     }
 
     // ========================================================================
-    // NOTIFICAÇÕES AUTOMÁTICAS
+    // NOTIFICAÇÕES
     // ========================================================================
 
     private async Task NotificarProducaoPvLiberado(PedidoVenda pv)
@@ -313,6 +517,48 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
             OrigemTabela = "Comercial_PedidosVenda",
             OrigemId = pv.Id
         });
+    }
+
+    /// <summary>
+    /// Notifica Engenharia, Produção e Almoxarifado sobre edição de itens em status avançado.
+    /// Almoxarifado só é notificado se status é Andamento ou Pausado (ainda tem impacto em materiais).
+    /// </summary>
+    private async Task NotificarEdicaoItensStatusAvancado(PedidoVenda pv, string justificativa, StatusPedidoVenda status)
+    {
+        var clienteNome = pv.Cliente?.Pessoa?.Nome ?? "?";
+
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Engenharia,
+            Tipo = TipoNotificacao.Aviso,
+            Titulo = $"PV {pv.Codigo} teve itens alterados",
+            Mensagem = $"Cliente: {clienteNome}. Motivo: {justificativa}. Avaliar impacto em BOM/estrutura.",
+            OrigemTabela = "Comercial_PedidosVenda",
+            OrigemId = pv.Id
+        });
+
+        await _notificacoes.Create(new NotificacaoCreateDTO
+        {
+            ModuloDestino = ModuloSistema.Producao,
+            Tipo = TipoNotificacao.Aviso,
+            Titulo = $"PV {pv.Codigo} teve itens alterados",
+            Mensagem = $"Cliente: {clienteNome}. Motivo: {justificativa}. Avaliar impacto em OPs.",
+            OrigemTabela = "Comercial_PedidosVenda",
+            OrigemId = pv.Id
+        });
+
+        if (status == StatusPedidoVenda.Andamento || status == StatusPedidoVenda.Pausado)
+        {
+            await _notificacoes.Create(new NotificacaoCreateDTO
+            {
+                ModuloDestino = ModuloSistema.Almoxarifado,
+                Tipo = TipoNotificacao.Aviso,
+                Titulo = $"PV {pv.Codigo} teve itens alterados",
+                Mensagem = $"Cliente: {clienteNome}. Motivo: {justificativa}. Avaliar impacto em materiais reservados.",
+                OrigemTabela = "Comercial_PedidosVenda",
+                OrigemId = pv.Id
+            });
+        }
     }
 
     // ========================================================================
@@ -393,12 +639,28 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         _ => true
     };
 
-    private static bool StatusPermiteEdicao(StatusPedidoVenda status) => status switch
+    /// <summary>
+    /// Status iniciais — edição livre, sem justificativa, sem notificação.
+    /// </summary>
+    public static bool StatusPermiteEdicao(StatusPedidoVenda status) => status switch
     {
         StatusPedidoVenda.AguardandoNS      => true,
         StatusPedidoVenda.RecebidoNS        => true,
         StatusPedidoVenda.AguardandoRetorno => true,
         StatusPedidoVenda.Liberado          => true,
+        _ => false
+    };
+
+    /// <summary>
+    /// Status avançados — edição permitida COM justificativa obrigatória + registra no histórico + notifica.
+    /// Entregue/Devolvido/Cancelado/Reaberto continuam BLOQUEADOS (não caem aqui).
+    /// </summary>
+    public static bool StatusPermiteEdicaoComJustificativa(StatusPedidoVenda status) => status switch
+    {
+        StatusPedidoVenda.Andamento => true,
+        StatusPedidoVenda.Concluido => true,
+        StatusPedidoVenda.AEntregar => true,
+        StatusPedidoVenda.Pausado   => true,
         _ => false
     };
 
@@ -431,15 +693,20 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         EventoPedidoVenda evento,
         StatusPedidoVenda? statusAnterior,
         StatusPedidoVenda? statusNovo,
-        string? justificativa)
+        string? justificativa,
+        string? detalhe)
     {
+        var msg = justificativa;
+        if (!string.IsNullOrWhiteSpace(detalhe))
+            msg = string.IsNullOrWhiteSpace(justificativa) ? detalhe : $"{justificativa} [{detalhe}]";
+
         _context.PedidoVendaHistorico.Add(new PedidoVendaHistorico
         {
             PedidoVendaId = pedidoVendaId,
             Evento = evento,
             StatusAnterior = statusAnterior,
             StatusNovo = statusNovo,
-            Justificativa = justificativa,
+            Justificativa = msg,
             DataHora = DateTime.UtcNow,
             CriadoEm = DateTime.UtcNow
         });

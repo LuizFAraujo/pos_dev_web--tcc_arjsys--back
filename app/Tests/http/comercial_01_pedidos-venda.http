@@ -1,332 +1,221 @@
 ### =============================================
-### COMERCIAL - PEDIDOS DE VENDA (v3)
+### COMERCIAL - PEDIDOS DE VENDA (v3 + consolidado)
+### =============================================
+### POST e PUT aceitam PV + itens em chamada única (atômica).
+### PUT retorna 200 OK com o PV completo (não mais 204).
 ### =============================================
 
 ### Listar todos
 GET {{host}}/api/comercial/PedidoVenda
 Accept: application/json
 
-### Listar paginado
+### Paginado
 GET {{host}}/api/comercial/PedidoVenda?pagina=1&tamanho=5
 Accept: application/json
 
 ### Buscar por ID (com itens)
-GET {{host}}/api/comercial/PedidoVenda/1
+GET {{host}}/api/comercial/PedidoVenda/12
 Accept: application/json
 
-### Buscar inexistente → 404
-GET {{host}}/api/comercial/PedidoVenda/9999
+### Histórico
+GET {{host}}/api/comercial/PedidoVenda/12/historico
 Accept: application/json
 
 
 ### =============================================
-### CRIAR PV — status inicial depende do tipo
+### CRIAR — ATÔMICO COM ITENS
 ### =============================================
 
-### Criar PV Normal (status inicial: Liberado)
+### PV Normal com 2 itens (nasce Liberado, notifica Producao)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
   "clienteId": 1,
   "tipo": "Normal",
-  "observacoes": "Venda fechada",
-  "dataEntrega": "2026-06-15"
+  "dataEntrega": "2026-05-20T00:00:00Z",
+  "observacoes": "Entregar na filial B",
+  "itens": [
+    { "quantidade": 1, "descricao": "Picador PIC-500", "observacao": "motor 50cv" },
+    { "quantidade": 2, "descricao": "Calha de entrada 640", "observacao": "6 metros" }
+  ]
 }
 
-### Criar PV PreVenda (status inicial: AguardandoNS)
+### PV PreVenda com 1 item (nasce AguardandoNS)
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
   "clienteId": 2,
   "tipo": "PreVenda",
-  "observacoes": "Pré-venda — aguardando financiamento",
-  "dataEntrega": "2026-09-30"
+  "observacoes": "Aguardando NS",
+  "itens": [
+    { "quantidade": 1, "descricao": "Projeto especial cliente X" }
+  ]
 }
 
-### Criar PV com data da venda explícita (venda cadastrada com atraso)
+### ERRO — sem itens → 400
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
   "clienteId": 1,
   "tipo": "Normal",
-  "data": "2026-04-10T08:00:00Z",
-  "observacoes": "Venda fechada dia 10, cadastrada depois",
-  "dataEntrega": "2026-06-20"
+  "itens": []
 }
 
-### Criar PV com cliente inexistente → 400
+### ERRO — chave itens ausente → 400
 POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
-  "clienteId": 9999,
+  "clienteId": 1,
   "tipo": "Normal"
 }
 
-
-### =============================================
-### ATUALIZAR PV (só em status iniciais)
-### =============================================
-
-### Atualizar PV (permitido em AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado)
-PUT {{host}}/api/comercial/PedidoVenda/15
+### ERRO — item com qtd zero → 400, PV não criado (rollback)
+POST {{host}}/api/comercial/PedidoVenda
 Content-Type: application/json
 
 {
-  "clienteId": 2,
+  "clienteId": 1,
   "tipo": "Normal",
-  "observacoes": "Observação atualizada",
-  "dataEntrega": "2026-07-01"
+  "itens": [
+    { "quantidade": 1, "descricao": "ok" },
+    { "quantidade": 0, "descricao": "invalido" }
+  ]
+}
+
+### ERRO — cliente inexistente → 400
+POST {{host}}/api/comercial/PedidoVenda
+Content-Type: application/json
+
+{
+  "clienteId": 99999,
+  "tipo": "Normal",
+  "itens": [ { "quantidade": 1, "descricao": "ok" } ]
 }
 
 
 ### =============================================
-### FLUXO PREVENDA — avanço até Liberado
+### EDITAR — DIFF CONSOLIDADO (status INICIAL, sem justificativa)
 ### =============================================
 
-### PreVenda: AguardandoNS → RecebidoNS (sem justificativa)
-PATCH {{host}}/api/comercial/PedidoVenda/15/status
+### Edita PV 12 (Liberado) — altera 1 item, adiciona 1, remove 1
+### Para ajustar IDs, primeiro faça GET /PedidoVenda/12 e veja os IDs dos itens
+PUT {{host}}/api/comercial/PedidoVenda/12
 Content-Type: application/json
 
 {
-  "novoStatus": "RecebidoNS"
+  "clienteId": 1,
+  "tipo": "Normal",
+  "dataEntrega": "2026-06-15T00:00:00Z",
+  "observacoes": "Data atualizada",
+  "itens": [
+    { "id": 20, "quantidade": 2, "descricao": "Item editado", "observacao": "nova obs" },
+    { "quantidade": 1, "descricao": "Item novo adicionado" }
+  ]
 }
 
-### PreVenda: RecebidoNS → AguardandoRetorno
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
+### ERRO — PUT sem itens → 400
+PUT {{host}}/api/comercial/PedidoVenda/12
 Content-Type: application/json
 
 {
-  "novoStatus": "AguardandoRetorno"
-}
-
-### PreVenda: AguardandoRetorno → Liberado (aprovação do cliente)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Liberado"
-}
-
-
-### =============================================
-### FLUXO NORMAL — Liberado → Entregue
-### =============================================
-
-### Liberado → Andamento (Produção iniciou)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Andamento"
-}
-
-### Andamento → Concluido (Produção finalizou)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Concluido"
-}
-
-### Concluido → AEntregar (Comercial liberou expedição)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "AEntregar"
-}
-
-### AEntregar → Entregue (entrega confirmada)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Entregue"
+  "clienteId": 1,
+  "tipo": "Normal",
+  "itens": []
 }
 
 
 ### =============================================
-### PAUSAR / RETOMAR (justificativa obrigatória no Pausar)
+### EDITAR — STATUS AVANÇADO (com justificativa)
 ### =============================================
 
-### Pausar (justificativa obrigatória)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
+### PV 11 está em Andamento — edita itens COM justificativa
+### EFEITO: gera evento ItensAlterados + notifica Eng/Prod/Almox
+PUT {{host}}/api/comercial/PedidoVenda/11
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "tipo": "Normal",
+  "itens": [
+    { "quantidade": 3, "descricao": "Item alterado pelo cliente" }
+  ],
+  "justificativa": "Cliente solicitou upgrade do motor para 75cv"
+}
+
+### Ver notificações disparadas
+GET {{host}}/api/admin/Notificacoes?modulo=Engenharia
+GET {{host}}/api/admin/Notificacoes?modulo=Producao
+GET {{host}}/api/admin/Notificacoes?modulo=Almoxarifado
+
+### Ver histórico com evento ItensAlterados
+GET {{host}}/api/comercial/PedidoVenda/11/historico
+
+### ERRO — PUT em Andamento SEM justificativa → 400
+PUT {{host}}/api/comercial/PedidoVenda/11
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "tipo": "Normal",
+  "itens": [
+    { "quantidade": 3, "descricao": "tentativa" }
+  ]
+}
+
+### ERRO — PUT em status terminal (PV 1 = Entregue) → 400
+PUT {{host}}/api/comercial/PedidoVenda/1
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "tipo": "Normal",
+  "itens": [ { "quantidade": 1, "descricao": "x" } ],
+  "justificativa": "qualquer"
+}
+
+
+### =============================================
+### STATUS (sem mudança)
+### =============================================
+
+### Pausar com justificativa
+PATCH {{host}}/api/comercial/PedidoVenda/12/status
 Content-Type: application/json
 
 {
   "novoStatus": "Pausado",
-  "justificativa": "Cliente pediu pausa por 30 dias"
+  "justificativa": "Aguardando confirmação do cliente"
 }
 
-### Pausar sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Pausado"
-}
-
-### Retomar (Pausado → Liberado, sem justificativa — é avanço)
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Liberado"
-}
-
-
-### =============================================
-### CANCELAR / REABRIR (justificativa obrigatória)
-### =============================================
-
-### Cancelar (justificativa obrigatória)
-PATCH {{host}}/api/comercial/PedidoVenda/17/status
+### Cancelar com justificativa
+PATCH {{host}}/api/comercial/PedidoVenda/12/status
 Content-Type: application/json
 
 {
   "novoStatus": "Cancelado",
-  "justificativa": "Cliente desistiu do financiamento"
+  "justificativa": "Cliente desistiu"
 }
 
-### Cancelar sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/17/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Cancelado"
-}
-
-### Cancelado → Reaberto (única transição permitida a partir de Cancelado)
-PATCH {{host}}/api/comercial/PedidoVenda/17/status
+### Reabrir (só a partir de Cancelado)
+PATCH {{host}}/api/comercial/PedidoVenda/12/status
 Content-Type: application/json
 
 {
   "novoStatus": "Reaberto",
-  "justificativa": "Cancelamento feito por engano"
-}
-
-### Cancelado → Liberado direto → 400 (só pode ir para Reaberto)
-PATCH {{host}}/api/comercial/PedidoVenda/17/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Liberado",
-  "justificativa": "tentativa direta"
-}
-
-### Reaberto → Liberado (manual, feito pelo Comercial após reabertura)
-PATCH {{host}}/api/comercial/PedidoVenda/17/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Liberado"
+  "justificativa": "Cliente voltou atrás"
 }
 
 
 ### =============================================
-### ENTREGUE — só aceita Devolvido (Pausar/Cancelar bloqueados)
+### EXCLUIR
 ### =============================================
 
-### Entregue → Pausado → 400 (bloqueado)
-PATCH {{host}}/api/comercial/PedidoVenda/1/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Pausado",
-  "justificativa": "tentativa inválida"
-}
-
-### Entregue → Cancelado → 400 (bloqueado)
-PATCH {{host}}/api/comercial/PedidoVenda/1/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Cancelado",
-  "justificativa": "tentativa inválida"
-}
-
-### Entregue → Devolvido (justificativa obrigatória)
-PATCH {{host}}/api/comercial/PedidoVenda/1/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Devolvido",
-  "justificativa": "Cliente devolveu por defeito de fabricação"
-}
-
-### Devolvido aplicado em PV não-Entregue → 400
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Devolvido",
-  "justificativa": "tentativa inválida"
-}
-
-
-### =============================================
-### RETROCESSO (justificativa obrigatória)
-### =============================================
-
-### Concluido → Andamento (retrocesso 1 nível)
-PATCH {{host}}/api/comercial/PedidoVenda/18/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Andamento",
-  "justificativa": "Revisão técnica solicitada"
-}
-
-### AEntregar → Andamento (retrocesso 2 níveis)
-PATCH {{host}}/api/comercial/PedidoVenda/18/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Andamento",
-  "justificativa": "Retrabalho detectado antes da expedição"
-}
-
-### Retrocesso sem justificativa → 400
-PATCH {{host}}/api/comercial/PedidoVenda/18/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Andamento"
-}
-
-
-### =============================================
-### MESMO STATUS → 400
-### =============================================
-
-### Liberado → Liberado → 400
-PATCH {{host}}/api/comercial/PedidoVenda/16/status
-Content-Type: application/json
-
-{
-  "novoStatus": "Liberado"
-}
-
-
-### =============================================
-### DELETE
-### =============================================
-
-### Deletar PV (permitido em AguardandoNS ou Liberado, sem NS vinculado)
+### Excluir PV Liberado sem NS e sem OP
 DELETE {{host}}/api/comercial/PedidoVenda/16
 
-### Deletar PV em Andamento → 400
-DELETE {{host}}/api/comercial/PedidoVenda/1
-
-
-### =============================================
-### HISTÓRICO DO PV
-### =============================================
-
-### Consultar histórico (evento, statusAnterior, statusNovo, justificativa, dataHora)
-GET {{host}}/api/comercial/PedidoVenda/15/historico
-Accept: application/json
+### ERRO — excluir em Andamento → 400
+DELETE {{host}}/api/comercial/PedidoVenda/11
