@@ -7,7 +7,7 @@ public partial class PedidoVendaDTO { }
 
 /// <summary>
 /// Entrada — criar Pedido de Venda.
-/// Tipo obrigatório: Normal (status inicial EmAndamento) ou VendaFutura (status inicial Aguardando).
+/// Tipo obrigatório: Normal (status inicial Liberado) ou PreVenda (status inicial AguardandoNS).
 /// Data da venda opcional — default DateTime.UtcNow.
 /// </summary>
 public class PedidoVendaCreateDTO
@@ -15,7 +15,7 @@ public class PedidoVendaCreateDTO
     /// <summary>FK para o Cliente</summary>
     public int ClienteId { get; set; }
 
-    /// <summary>Normal ou VendaFutura (obrigatório)</summary>
+    /// <summary>Normal ou PreVenda (obrigatório)</summary>
     public TipoPedidoVenda Tipo { get; set; } = TipoPedidoVenda.Normal;
 
     /// <summary>Data da venda (negócio). Se omitida, usa a data/hora atual.</summary>
@@ -50,13 +50,13 @@ public class PedidoVendaResponseDTO
 
 /// <summary>
 /// Entrada — alterar status do PV.
-/// Justificativa é obrigatória em pausar, cancelar e retroceder (inclui reabertura do Cancelado).
+/// Justificativa é obrigatória em Pausar, Cancelar, Reabrir, Devolver e retroceder.
 /// </summary>
 public class StatusPedidoVendaDTO
 {
     /// <summary>Status de destino</summary>
     public StatusPedidoVenda NovoStatus { get; set; }
 
-    /// <summary>Justificativa da mudança. Obrigatória em pausar/cancelar/retroceder.</summary>
+    /// <summary>Justificativa da mudança. Obrigatória em Pausar/Cancelar/Reabrir/Devolver/retroceder.</summary>
     public string? Justificativa { get; set; }
 }

@@ -35,7 +35,7 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Cria Pedido de Venda. Tipo obrigatório (Normal ou VendaFutura).
+    /// Cria Pedido de Venda. Tipo obrigatório (Normal ou PreVenda).
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<PedidoVendaResponseDTO>> Create(PedidoVendaCreateDTO dto)
@@ -49,7 +49,8 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Atualiza dados cadastrais do PV. Permitido em Aguardando ou Em Andamento.
+    /// Atualiza dados cadastrais do PV. Permitido apenas nos status iniciais do fluxo
+    /// (AguardandoNS, RecebidoNS, AguardandoRetorno, Liberado).
     /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, PedidoVendaCreateDTO dto)
@@ -66,7 +67,7 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Altera status do PV. Justificativa é obrigatória em pausar, cancelar, reabrir e retroceder.
+    /// Altera status do PV. Justificativa é obrigatória em Pausar, Cancelar, Reabrir, Devolver e retroceder.
     /// </summary>
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> AlterarStatus(int id, StatusPedidoVendaDTO dto)
@@ -83,7 +84,7 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
-    /// Exclui PV. Permitido apenas em Aguardando e sem NS vinculado.
+    /// Exclui PV. Permitido apenas em AguardandoNS ou Liberado, sem NS e sem OPs vinculadas.
     /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
