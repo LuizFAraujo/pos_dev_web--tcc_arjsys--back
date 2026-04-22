@@ -20,6 +20,10 @@ public class FuncionarioResponseDTO
 {
     public int Id { get; set; }
     public int PessoaId { get; set; }
+
+    /// <summary>Código humano único (ex: "FUN-0042"). Gerado automaticamente.</summary>
+    public string Codigo { get; set; } = string.Empty;
+
     public string Nome { get; set; } = string.Empty;
     public string? CpfCnpj { get; set; }
     public string? Telefone { get; set; }

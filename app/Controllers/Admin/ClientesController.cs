@@ -11,10 +11,13 @@ public class ClientesController(ClienteService service) : ControllerBase
 {
     private readonly ClienteService _service = service;
 
+    /// <summary>
+    /// Lista clientes. Suporta filtro por texto em nome, código, CPF/CNPJ e cidade.
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<ClienteResponseDTO>>> GetAll()
+    public async Task<ActionResult<List<ClienteResponseDTO>>> GetAll([FromQuery] string? busca = null)
     {
-        return await _service.GetAll();
+        return await _service.GetAll(busca);
     }
 
     [HttpGet("{id:int}")]

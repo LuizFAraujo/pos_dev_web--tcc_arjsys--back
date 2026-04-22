@@ -1,75 +1,94 @@
 ### =============================================
-### ADMIN - FUNCIONÁRIOS
+### ADMIN - FUNCIONARIOS
+### =============================================
+### Código humano gerado automaticamente (FUN-NNNN).
+### Seed: FUN-0001 = joao.silva, FUN-0002 = maria.souza, ... FUN-0010 = marcos.rocha
 ### =============================================
 
 ### Listar todos
 GET {{host}}/api/admin/Funcionarios
 Accept: application/json
 
+
+### =============================================
+### BUSCA (filtro por texto em nome, codigo, usuario, cargo)
+### =============================================
+
+### Busca exata por código
+GET {{host}}/api/admin/Funcionarios?busca=FUN-0001
+Accept: application/json
+
+### Busca por prefixo
+GET {{host}}/api/admin/Funcionarios?busca=FUN-000
+Accept: application/json
+
+### Busca por usuario
+GET {{host}}/api/admin/Funcionarios?busca=joao.silva
+Accept: application/json
+
+### Busca por trecho do nome
+GET {{host}}/api/admin/Funcionarios?busca=Maria
+Accept: application/json
+
+
+### =============================================
+### CRUD
+### =============================================
+
 ### Buscar por ID
 GET {{host}}/api/admin/Funcionarios/1
 Accept: application/json
 
-### Buscar inexistente → 404
-GET {{host}}/api/admin/Funcionarios/999
-Accept: application/json
-
-### Criar funcionário
+### Criar funcionário — código gerado automaticamente
 POST {{host}}/api/admin/Funcionarios
 Content-Type: application/json
 
 {
-  "nome": "Revo Teste",
-  "cpfCnpj": "111.111.111-11",
-  "telefone": "(00) 00000-0000",
-  "email": "revo.teste@email.com",
-  "cargo": "Testador",
-  "setor": "TI",
-  "usuario": "revo",
-  "senha": "123"
+  "nome": "Funcionario Novo Teste",
+  "cpfCnpj": "111.222.333-44",
+  "telefone": "(44) 99903-0011",
+  "email": "novo@email.com",
+  "usuario": "novo.teste",
+  "senha": "123",
+  "cargo": "Assistente",
+  "setor": "Comercial"
 }
 
-### Criar com usuário duplicado → 400
+### Criar tentando passar código no body — IGNORADO
 POST {{host}}/api/admin/Funcionarios
 Content-Type: application/json
 
 {
-  "nome": "Outro Funcionário",
-  "usuario": "func.teste",
-  "senha": "outra123"
+  "nome": "Teste codigo no body",
+  "usuario": "codigo.teste",
+  "senha": "123",
+  "codigo": "FUN-9999"
 }
 
-### Criar sem usuário → 400
-POST {{host}}/api/admin/Funcionarios
+### Atualizar — código NÃO muda
+PUT {{host}}/api/admin/Funcionarios/1
 Content-Type: application/json
 
 {
-  "nome": "Sem Usuário",
-  "usuario": "",
-  "senha": "teste123"
+  "nome": "Joao Carlos Silva",
+  "cpfCnpj": "123.456.789-00",
+  "telefone": "(44) 99902-0001",
+  "email": "joao.silva@email.com",
+  "cidade": "Maringa",
+  "estado": "PR",
+  "usuario": "joao.silva",
+  "senha": "",
+  "cargo": "Diretor",
+  "setor": "Administrativo"
 }
 
-### Criar sem senha → 400
-POST {{host}}/api/admin/Funcionarios
-Content-Type: application/json
-
-{
-  "nome": "Sem Senha",
-  "usuario": "sem.senha",
-  "senha": ""
-}
-
-### Atualizar funcionário (ajustar ID)
-PUT {{host}}/api/admin/Funcionarios/11
-Content-Type: application/json
-
-{
-  "nome": "Funcionário ATUALIZADO",
-  "cargo": "Analista",
-  "setor": "Engenharia",
-  "usuario": "func.teste",
-  "senha": "novasenha456"
-}
-
-### Deletar funcionário (ajustar ID)
+### Excluir
 DELETE {{host}}/api/admin/Funcionarios/11
+
+
+### =============================================
+### VERIFICAR CODIGO EM RESPONSE DE PERMISSAO
+### =============================================
+
+### Permissões de um funcionário devem incluir funcionarioCodigo
+GET {{host}}/api/admin/Permissoes/funcionario/1

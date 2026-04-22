@@ -10,10 +10,24 @@ public class ClienteService(AppDbContext context)
 {
     private readonly AppDbContext _context = context;
 
-    public async Task<List<ClienteResponseDTO>> GetAll()
+    /// <summary>
+    /// Lista clientes. Suporta filtro por texto (busca em nome, codigo, cpfCnpj e cidade).
+    /// </summary>
+    public async Task<List<ClienteResponseDTO>> GetAll(string? busca = null)
     {
-        return await _context.Clientes
-            .Include(c => c.Pessoa)
+        var query = _context.Clientes.Include(c => c.Pessoa).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(busca))
+        {
+            var termo = busca.Trim();
+            query = query.Where(c =>
+                c.Pessoa.Nome.Contains(termo) ||
+                c.Pessoa.Codigo.Contains(termo) ||
+                (c.Pessoa.CpfCnpj != null && c.Pessoa.CpfCnpj.Contains(termo)) ||
+                (c.Pessoa.Cidade != null && c.Pessoa.Cidade.Contains(termo)));
+        }
+
+        return await query
             .OrderBy(c => c.Pessoa.Nome)
             .Select(c => ToResponseDTO(c))
             .ToListAsync();
@@ -28,42 +42,65 @@ public class ClienteService(AppDbContext context)
         return cliente == null ? null : ToResponseDTO(cliente);
     }
 
+    /// <summary>
+    /// Cria cliente. Código é gerado automaticamente (CLI-NNNN).
+    /// Em caso de colisão no unique index (concorrência), tenta novamente até 3 vezes.
+    /// </summary>
     public async Task<(ClienteResponseDTO? Item, string? Erro)> Create(ClienteCreateDTO dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Nome))
             return (null, "Nome é obrigatório");
 
-        var pessoa = new Pessoa
+        const int maxTentativas = 3;
+
+        for (int tentativa = 1; tentativa <= maxTentativas; tentativa++)
         {
-            Nome = dto.Nome,
-            CpfCnpj = dto.CpfCnpj,
-            Telefone = dto.Telefone,
-            Email = dto.Email,
-            Endereco = dto.Endereco,
-            Cidade = dto.Cidade,
-            Estado = dto.Estado,
-            Cep = dto.Cep,
-            Tipo = TipoPessoa.Cliente,
-            CriadoEm = DateTime.UtcNow
-        };
+            try
+            {
+                var codigo = await CodigoPessoaGenerator.GerarProximo(_context, TipoPessoa.Cliente);
 
-        _context.Pessoas.Add(pessoa);
-        await _context.SaveChangesAsync();
+                var pessoa = new Pessoa
+                {
+                    Codigo = codigo,
+                    Nome = dto.Nome,
+                    CpfCnpj = dto.CpfCnpj,
+                    Telefone = dto.Telefone,
+                    Email = dto.Email,
+                    Endereco = dto.Endereco,
+                    Cidade = dto.Cidade,
+                    Estado = dto.Estado,
+                    Cep = dto.Cep,
+                    Tipo = TipoPessoa.Cliente,
+                    CriadoEm = DateTime.UtcNow
+                };
 
-        var cliente = new Cliente
-        {
-            PessoaId = pessoa.Id,
-            RazaoSocial = dto.RazaoSocial,
-            InscricaoEstadual = dto.InscricaoEstadual,
-            ContatoComercial = dto.ContatoComercial,
-            CriadoEm = DateTime.UtcNow
-        };
+                _context.Pessoas.Add(pessoa);
+                await _context.SaveChangesAsync();
 
-        _context.Clientes.Add(cliente);
-        await _context.SaveChangesAsync();
+                var cliente = new Cliente
+                {
+                    PessoaId = pessoa.Id,
+                    RazaoSocial = dto.RazaoSocial,
+                    InscricaoEstadual = dto.InscricaoEstadual,
+                    ContatoComercial = dto.ContatoComercial,
+                    CriadoEm = DateTime.UtcNow
+                };
 
-        cliente.Pessoa = pessoa;
-        return (ToResponseDTO(cliente), null);
+                _context.Clientes.Add(cliente);
+                await _context.SaveChangesAsync();
+
+                cliente.Pessoa = pessoa;
+                return (ToResponseDTO(cliente), null);
+            }
+            catch (DbUpdateException) when (tentativa < maxTentativas)
+            {
+                // Colisão no unique index — limpa tracking e tenta de novo
+                foreach (var entry in _context.ChangeTracker.Entries().ToList())
+                    entry.State = EntityState.Detached;
+            }
+        }
+
+        return (null, "Não foi possível gerar código único após várias tentativas. Tente novamente.");
     }
 
     public async Task<(bool Sucesso, string? Erro)> Update(int id, ClienteCreateDTO dto)
@@ -75,6 +112,7 @@ public class ClienteService(AppDbContext context)
         if (cliente == null)
             return (false, "Cliente não encontrado");
 
+        // Codigo não muda no update
         cliente.Pessoa.Nome = dto.Nome;
         cliente.Pessoa.CpfCnpj = dto.CpfCnpj;
         cliente.Pessoa.Telefone = dto.Telefone;
@@ -113,6 +151,7 @@ public class ClienteService(AppDbContext context)
     {
         Id = c.Id,
         PessoaId = c.PessoaId,
+        Codigo = c.Pessoa.Codigo,
         Nome = c.Pessoa.Nome,
         CpfCnpj = c.Pessoa.CpfCnpj,
         Telefone = c.Pessoa.Telefone,

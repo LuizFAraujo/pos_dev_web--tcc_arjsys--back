@@ -80,6 +80,10 @@ public class PedidoVendaResponseDTO
     public int Id { get; set; }
     public string Codigo { get; set; } = string.Empty;
     public int ClienteId { get; set; }
+
+    /// <summary>Código humano do cliente (ex: "CLI-0042").</summary>
+    public string ClienteCodigo { get; set; } = string.Empty;
+
     public string ClienteNome { get; set; } = string.Empty;
     public TipoPedidoVenda Tipo { get; set; }
     public StatusPedidoVenda Status { get; set; }

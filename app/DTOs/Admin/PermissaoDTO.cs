@@ -13,6 +13,10 @@ public class PermissaoResponseDTO
 {
     public int Id { get; set; }
     public int FuncionarioId { get; set; }
+
+    /// <summary>Código humano do funcionário (ex: "FUN-0042").</summary>
+    public string FuncionarioCodigo { get; set; } = string.Empty;
+
     public string FuncionarioNome { get; set; } = string.Empty;
     public ModuloSistema Modulo { get; set; }
     public NivelAcesso Nivel { get; set; }

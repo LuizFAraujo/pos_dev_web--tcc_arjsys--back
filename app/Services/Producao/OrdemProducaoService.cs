@@ -793,6 +793,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
             Codigo = op.Codigo,
             PedidoVendaId = op.PedidoVendaId,
             PedidoVendaCodigo = op.PedidoVenda?.Codigo,
+            ClienteCodigo = op.PedidoVenda?.Cliente?.Pessoa?.Codigo,
             ClienteNome = op.PedidoVenda?.Cliente?.Pessoa?.Nome,
             ProdutoId = op.ProdutoId,
             ProdutoCodigo = op.Produto?.Codigo ?? string.Empty,

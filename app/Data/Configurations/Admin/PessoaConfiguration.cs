@@ -10,6 +10,9 @@ public class PessoaConfiguration : IEntityTypeConfiguration<Pessoa>
     {
         builder.ToTable("Admin_Pessoas");
 
+        builder.Property(p => p.Codigo).IsRequired().HasMaxLength(10);
+        builder.HasIndex(p => p.Codigo).IsUnique();
+
         builder.Property(p => p.Nome).HasMaxLength(200);
         builder.Property(p => p.CpfCnpj).HasMaxLength(18);
         builder.Property(p => p.Telefone).HasMaxLength(20);

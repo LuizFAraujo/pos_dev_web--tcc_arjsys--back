@@ -212,6 +212,7 @@ public class NumeroSerieService(AppDbContext context)
         Codigo = n.Codigo,
         PedidoVendaId = n.PedidoVendaId,
         PedidoVendaCodigo = n.PedidoVenda?.Codigo ?? string.Empty,
+        ClienteCodigo = n.PedidoVenda?.Cliente?.Pessoa?.Codigo ?? string.Empty,
         ClienteNome = n.PedidoVenda?.Cliente?.Pessoa?.Nome ?? string.Empty,
         PvTipo = n.PedidoVenda?.Tipo ?? TipoPedidoVenda.Normal,
         PvStatus = n.PedidoVenda?.Status ?? StatusPedidoVenda.Liberado,

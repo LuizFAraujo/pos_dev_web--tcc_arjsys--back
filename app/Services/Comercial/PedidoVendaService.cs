@@ -717,6 +717,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         Id = p.Id,
         Codigo = p.Codigo,
         ClienteId = p.ClienteId,
+        ClienteCodigo = p.Cliente?.Pessoa?.Codigo ?? string.Empty,
         ClienteNome = p.Cliente?.Pessoa?.Nome ?? string.Empty,
         Tipo = p.Tipo,
         Status = p.Status,

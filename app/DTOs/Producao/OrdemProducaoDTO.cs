@@ -44,7 +44,7 @@ public class OrdemProducaoApontamentoDTO
 }
 
 /// <summary>
-/// Response da OP. PV e ClienteNome opcionais (OP de estoque pode não ter PV).
+/// Response da OP. PV e Cliente opcionais (OP de estoque pode não ter PV).
 /// </summary>
 public class OrdemProducaoResponseDTO
 {
@@ -53,6 +53,10 @@ public class OrdemProducaoResponseDTO
 
     public int? PedidoVendaId { get; set; }
     public string? PedidoVendaCodigo { get; set; }
+
+    /// <summary>Código humano do cliente do PV (ex: "CLI-0042"). Null se OP é de estoque.</summary>
+    public string? ClienteCodigo { get; set; }
+
     public string? ClienteNome { get; set; }
 
     public int ProdutoId { get; set; }

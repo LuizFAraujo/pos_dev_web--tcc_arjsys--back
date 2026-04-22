@@ -1,5 +1,3 @@
-using Api_ArjSys_Tcc.Models.Admin.Enums;
-
 namespace Api_ArjSys_Tcc.DTOs.Admin;
 
 public class ClienteCreateDTO
@@ -21,6 +19,10 @@ public class ClienteResponseDTO
 {
     public int Id { get; set; }
     public int PessoaId { get; set; }
+
+    /// <summary>Código humano único (ex: "CLI-0042"). Gerado automaticamente.</summary>
+    public string Codigo { get; set; } = string.Empty;
+
     public string Nome { get; set; } = string.Empty;
     public string? CpfCnpj { get; set; }
     public string? Telefone { get; set; }

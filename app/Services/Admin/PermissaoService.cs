@@ -80,6 +80,7 @@ public class PermissaoService(AppDbContext context)
     {
         Id = p.Id,
         FuncionarioId = p.FuncionarioId,
+        FuncionarioCodigo = p.Funcionario.Pessoa.Codigo,
         FuncionarioNome = p.Funcionario.Pessoa.Nome,
         Modulo = p.Modulo,
         Nivel = p.Nivel,

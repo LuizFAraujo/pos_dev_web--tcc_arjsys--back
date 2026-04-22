@@ -1,59 +1,105 @@
 ### =============================================
 ### ADMIN - CLIENTES
 ### =============================================
+### Código humano gerado automaticamente (CLI-NNNN).
+### Não aceito no payload de criação (ignorado silenciosamente se vier).
+### =============================================
 
 ### Listar todos
 GET {{host}}/api/admin/Clientes
 Accept: application/json
 
+
+### =============================================
+### BUSCA (filtro por texto em nome, codigo, cpfCnpj, cidade)
+### =============================================
+
+### Busca exata por código
+GET {{host}}/api/admin/Clientes?busca=CLI-0001
+Accept: application/json
+
+### Busca por prefixo (retorna múltiplos)
+GET {{host}}/api/admin/Clientes?busca=CLI-00
+Accept: application/json
+
+### Busca por cidade
+GET {{host}}/api/admin/Clientes?busca=Maringa
+Accept: application/json
+
+### Busca por trecho do nome
+GET {{host}}/api/admin/Clientes?busca=Agro
+Accept: application/json
+
+### Busca por CPF/CNPJ
+GET {{host}}/api/admin/Clientes?busca=11.222.333
+Accept: application/json
+
+
+### =============================================
+### CRUD
+### =============================================
+
 ### Buscar por ID
 GET {{host}}/api/admin/Clientes/1
 Accept: application/json
 
-### Buscar inexistente → 404
-GET {{host}}/api/admin/Clientes/999
-Accept: application/json
-
-### Criar cliente
+### Criar cliente — código gerado automaticamente
 POST {{host}}/api/admin/Clientes
 Content-Type: application/json
 
 {
-  "nome": "Cliente Teste Ltda",
-  "cpfCnpj": "99.999.999/0001-99",
-  "telefone": "(44) 3399-9999",
-  "email": "teste@teste.com.br",
+  "nome": "Cliente Novo Teste",
+  "cpfCnpj": "99.888.777/0001-66",
+  "telefone": "(44) 3322-9999",
+  "email": "teste@novo.com.br",
   "endereco": "Rua Teste 100",
-  "cidade": "Maringá",
+  "cidade": "Maringa",
   "estado": "PR",
-  "cep": "87000-000",
-  "razaoSocial": "Cliente Teste Ltda EPP",
-  "inscricaoEstadual": "999.99999-99",
-  "contatoComercial": "Teste - (44) 99999-9999"
+  "cep": "87050-000",
+  "razaoSocial": "Cliente Novo Teste Ltda"
 }
 
-### Criar sem nome → 400
+### Criar cliente enviando "codigo" no body — é IGNORADO (back gera o próprio)
 POST {{host}}/api/admin/Clientes
 Content-Type: application/json
 
 {
-  "nome": "",
-  "razaoSocial": "Sem Nome Ltda"
+  "nome": "Teste com codigo no body",
+  "cpfCnpj": "88.777.666/0001-55",
+  "codigo": "CLI-9999"
 }
 
-### Atualizar cliente (ajustar ID)
-PUT {{host}}/api/admin/Clientes/16
+### Atualizar cliente — código NÃO muda
+PUT {{host}}/api/admin/Clientes/1
 Content-Type: application/json
 
 {
-  "nome": "Cliente Teste ATUALIZADO",
-  "cpfCnpj": "99.999.999/0001-99",
-  "telefone": "(44) 3399-8888",
-  "email": "atualizado@teste.com.br",
-  "cidade": "Londrina",
+  "nome": "Metalurgica Sao Jose Ltda - Atualizada",
+  "cpfCnpj": "12.345.678/0001-90",
+  "telefone": "(44) 3222-9999",
+  "email": "novo@saojose.com.br",
+  "endereco": "Rod. BR-376 Km 15",
+  "cidade": "Maringa",
   "estado": "PR",
-  "razaoSocial": "Cliente Teste Atualizado Ltda"
+  "cep": "87050-000",
+  "razaoSocial": "Metalurgica Sao Jose Ltda",
+  "inscricaoEstadual": "901.23456-78",
+  "contatoComercial": "Paulo - (44) 99801-0001"
 }
 
-### Deletar cliente (ajustar ID)
+### Excluir
 DELETE {{host}}/api/admin/Clientes/16
+
+
+### =============================================
+### VERIFICAR CODIGO EM RESPONSES RELACIONADAS
+### =============================================
+
+### PV deve incluir clienteCodigo
+GET {{host}}/api/comercial/PedidoVenda/7
+
+### NS deve incluir clienteCodigo
+GET {{host}}/api/comercial/NumeroSerie
+
+### OP deve incluir clienteCodigo (null se é de estoque)
+GET {{host}}/api/producao/OrdemProducao/1

@@ -43,6 +43,10 @@ public class NumeroSerieResponseDTO
     // PV (readonly)
     public int PedidoVendaId { get; set; }
     public string PedidoVendaCodigo { get; set; } = string.Empty;
+
+    /// <summary>Código humano do cliente (ex: "CLI-0042").</summary>
+    public string ClienteCodigo { get; set; } = string.Empty;
+
     public string ClienteNome { get; set; } = string.Empty;
     public TipoPedidoVenda PvTipo { get; set; }
     public StatusPedidoVenda PvStatus { get; set; }
