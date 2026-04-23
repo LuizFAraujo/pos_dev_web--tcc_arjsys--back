@@ -28,7 +28,15 @@
 PRAGMA foreign_keys = OFF;
 
 
--- ---- 2) Limpa tabelas do módulo COMERCIAL -----------------------------------
+-- ---- 2) Limpa tabelas do módulo PRODUÇÃO ------------------------------------
+-- Filhas primeiro (Historico, Itens) e depois Master (OrdensProducao),
+-- mas como FK está desligada a ordem é livre.
+DELETE FROM Producao_OrdemProducaoHistorico;
+DELETE FROM Producao_OrdensProducaoItens;
+DELETE FROM Producao_OrdensProducao;
+
+
+-- ---- 3) Limpa tabelas do módulo COMERCIAL -----------------------------------
 -- Ordem lógica (filhas primeiro), mas como FK está desligada, a ordem é livre.
 DELETE FROM Comercial_PedidoVendaHistorico;
 DELETE FROM Comercial_NumerosSerie;
@@ -36,14 +44,15 @@ DELETE FROM Comercial_PedidosVendaItens;
 DELETE FROM Comercial_PedidosVenda;
 
 
--- ---- 3) Limpa tabelas do módulo ADMIN ---------------------------------------
+-- ---- 4) Limpa tabelas do módulo ADMIN ---------------------------------------
+DELETE FROM Admin_Notificacoes;
 DELETE FROM Admin_Permissoes;
 DELETE FROM Admin_Funcionarios;
 DELETE FROM Admin_Clientes;
 DELETE FROM Admin_Pessoas;
 
 
--- ---- 4) Limpa tabelas do módulo ENGENHARIA ----------------------------------
+-- ---- 5) Limpa tabelas do módulo ENGENHARIA ----------------------------------
 DELETE FROM Engenharia_EstruturasProdutos;
 DELETE FROM Engenharia_Produtos;
 DELETE FROM Engenharia_GruposVinculos;
@@ -52,7 +61,7 @@ DELETE FROM Engenharia_PathDocumentos;
 DELETE FROM Engenharia_Configuracoes;
 
 
--- ---- 5) Zera os contadores de AUTOINCREMENT --------------------------------
+-- ---- 6) Zera os contadores de AUTOINCREMENT --------------------------------
 -- Sem isso, mesmo depois do DELETE os novos INSERTs continuam com ID a partir
 -- do último valor usado. Zerando, a próxima linha inserida recebe Id = 1.
 -- A tabela sqlite_sequence é interna do SQLite e guarda o último Id de cada
@@ -60,7 +69,7 @@ DELETE FROM Engenharia_Configuracoes;
 DELETE FROM sqlite_sequence;
 
 
--- ---- 6) Religa FKs ----------------------------------------------------------
+-- ---- 7) Religa FKs ----------------------------------------------------------
 -- Volta ao comportamento normal: o banco passa a validar FKs em qualquer
 -- INSERT/UPDATE/DELETE subsequente.
 PRAGMA foreign_keys = ON;
