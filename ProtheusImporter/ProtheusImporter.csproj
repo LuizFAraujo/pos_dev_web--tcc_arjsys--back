@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ProtheusImporter</RootNamespace>
+    <AssemblyName>ProtheusImporter</AssemblyName>
+    <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Referencia ao app pra reusar Models, DbContext e Configurations (sem duplicar). -->
+    <ProjectReference Include="..\app\Api_ArjSys_Tcc.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- EF Core + SQLite (mesmas versoes do app). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
+
+    <!-- UI de console rica: menus, prompts, progresso, tabelas, cores. -->
+    <PackageReference Include="Spectre.Console" Version="0.49.1" />
+
+    <!-- Habilita Encoding.GetEncoding(1252) em .NET Core/5+/10. -->
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Garante que o importer-config.ini va junto ao bin/publish. -->
+    <None Update="importer-config.ini">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
