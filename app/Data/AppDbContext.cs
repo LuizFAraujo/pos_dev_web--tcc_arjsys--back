@@ -25,6 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Funcionario> Funcionarios => Set<Funcionario>();
     public DbSet<Permissao> Permissoes => Set<Permissao>();
     public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
+    public DbSet<ConfiguracaoEmpresa> ConfiguracaoEmpresa => Set<ConfiguracaoEmpresa>();
 
 
 

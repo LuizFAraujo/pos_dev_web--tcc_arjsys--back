@@ -62,6 +62,7 @@ builder.Services.AddScoped<FuncionarioService>();
 builder.Services.AddScoped<PermissaoService>();
 builder.Services.AddScoped<NotificacaoService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ConfiguracaoEmpresaService>();
 
 
 // Comercial

@@ -57,6 +57,37 @@ namespace Api_ArjSys_Tcc.Migrations
                     b.ToTable("Admin_Clientes", (string)null);
                 });
 
+            modelBuilder.Entity("Api_ArjSys_Tcc.Models.Admin.ConfiguracaoEmpresa", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AnoFundacao")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Configurado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CriadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ModificadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Admin_ConfiguracaoEmpresa", (string)null);
+                });
+
             modelBuilder.Entity("Api_ArjSys_Tcc.Models.Admin.Funcionario", b =>
                 {
                     b.Property<int>("Id")

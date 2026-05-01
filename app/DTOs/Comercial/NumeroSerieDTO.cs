@@ -10,6 +10,11 @@ public partial class NumeroSerieDTO { }
 /// Vinculação 1:1 com PV (rejeita se o PV já tiver NS).
 /// Só pode criar NS para PV tipo PreVenda em status AguardandoNS.
 /// ProdutoId é opcional (Engenharia pode preencher depois via Update).
+///
+/// Codigo é opcional:
+/// - Se omitido/vazio: gera automaticamente no formato II.MM.AA.NNNNN.
+/// - Se informado: valida formato, unicidade do código completo e do
+///   sequencial isolado (NNNNN) globalmente único.
 /// </summary>
 public class NumeroSerieCreateDTO
 {
@@ -18,11 +23,18 @@ public class NumeroSerieCreateDTO
 
     /// <summary>FK para o Produto BOM (projeto) — opcional</summary>
     public int? ProdutoId { get; set; }
+
+    /// <summary>
+    /// Código manual no formato II.MM.AA.NNNNN — opcional.
+    /// Se null/vazio, o backend gera automaticamente.
+    /// </summary>
+    public string? Codigo { get; set; }
 }
 
 /// <summary>
 /// Entrada — editar Número de Série.
 /// Engenharia edita apenas o Produto vinculado. Dados do PV são readonly.
+/// Codigo NUNCA é editável (não tem campo no DTO).
 /// </summary>
 public class NumeroSerieUpdateDTO
 {

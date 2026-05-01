@@ -3,6 +3,7 @@ using Api_ArjSys_Tcc.Data;
 using Api_ArjSys_Tcc.Models.Comercial;
 using Api_ArjSys_Tcc.Models.Comercial.Enums;
 using Api_ArjSys_Tcc.DTOs.Comercial;
+using Api_ArjSys_Tcc.Services.Admin;
 
 namespace Api_ArjSys_Tcc.Services.Comercial;
 
@@ -13,13 +14,21 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// Criação manual só para PV tipo PreVenda em status AguardandoNS.
 /// PV tipo Normal recebe NS automaticamente via Ordem de Produção (Fase 3b).
 /// Produto vinculado deve ser BOM (ter pelo menos 1 filho em EstruturasProdutos).
+///
+/// Pré-requisito: ConfiguracaoEmpresa.Configurado = true.
+/// Sem isso, qualquer Create de NS é rejeitado com erro descritivo.
+///
+/// Código:
+/// - Formato: II.MM.AA.NNNNN (idade da empresa, mês, ano, sequencial 5 dígitos).
+/// - AnoFundacao vem da ConfiguracaoEmpresa (Admin) — antes era const hardcoded.
+/// - Sequencial NNNNN é único GLOBAL (entre todos os NS, qualquer prefixo).
+/// - Pode ser informado manualmente no Create (valida formato + unicidade).
+/// - Não pode ser alterado no Update (NumeroSerieUpdateDTO não tem campo Codigo).
 /// </summary>
-public class NumeroSerieService(AppDbContext context)
+public class NumeroSerieService(AppDbContext context, ConfiguracaoEmpresaService configEmpresa)
 {
     private readonly AppDbContext _context = context;
-
-    // Ano de fundação da empresa — usado para calcular a idade
-    private const int AnoFundacao = 1966;
+    private readonly ConfiguracaoEmpresaService _configEmpresa = configEmpresa;
 
     /// <summary>
     /// Lista todos os NS com dados do PV e Produto vinculados. Suporta paginação.
@@ -75,13 +84,21 @@ public class NumeroSerieService(AppDbContext context)
 
     /// <summary>
     /// Cria NS vinculado a um PV. Regras:
+    /// - ConfiguracaoEmpresa.Configurado deve ser true (ano de fundação setado);
     /// - PV deve ser do tipo PreVenda;
     /// - PV deve estar em status AguardandoNS;
     /// - 1 PV = 1 NS (rejeita se já existe NS vinculado);
-    /// - Se ProdutoId informado, Produto deve existir e ter BOM.
+    /// - Se ProdutoId informado, Produto deve existir e ter BOM;
+    /// - Se Codigo informado, valida formato e unicidade (completo + sequencial isolado);
+    /// - Se Codigo omitido, gera automaticamente.
     /// </summary>
     public async Task<(NumeroSerieResponseDTO? Item, string? Erro)> Create(NumeroSerieCreateDTO dto)
     {
+        // Pré-requisito: empresa precisa ter o ano de fundação confirmado.
+        var configurado = await _configEmpresa.IsConfigurado();
+        if (!configurado)
+            return (null, "Configure o ano de fundação da empresa antes de emitir Números de Série.");
+
         var pedido = await _context.PedidosVenda
             .Include(p => p.Cliente)
                 .ThenInclude(c => c.Pessoa)
@@ -108,7 +125,27 @@ public class NumeroSerieService(AppDbContext context)
                 return (null, erroProduto);
         }
 
-        var codigo = await GerarCodigo();
+        // Carrega TODOS os códigos existentes em uma única query — usado tanto pelo
+        // ValidarCodigoManual quanto pelo GerarCodigo (evita duas queries pesadas).
+        var codigosExistentes = await _context.NumerosSerie
+            .Select(n => n.Codigo)
+            .ToListAsync();
+
+        string codigo;
+
+        if (!string.IsNullOrWhiteSpace(dto.Codigo))
+        {
+            // Manual: valida formato + unicidade do código completo + unicidade do sequencial isolado
+            var (ok, erro) = ValidarCodigoManual(dto.Codigo, codigosExistentes);
+            if (!ok)
+                return (null, erro);
+            codigo = dto.Codigo;
+        }
+        else
+        {
+            // Automático: monta prefixo a partir da config + acha próximo sequencial global
+            codigo = await GerarCodigo(codigosExistentes);
+        }
 
         var ns = new NumeroSerie
         {
@@ -129,6 +166,7 @@ public class NumeroSerieService(AppDbContext context)
 
     /// <summary>
     /// Atualiza o Produto vinculado ao NS. Valida que o Produto tem BOM.
+    /// Codigo NÃO pode ser alterado aqui — não há campo no UpdateDTO.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, NumeroSerieUpdateDTO dto)
     {
@@ -175,32 +213,74 @@ public class NumeroSerieService(AppDbContext context)
     }
 
     /// <summary>
-    /// Gera o próximo código no formato II.MM.AA.NNNNN.
+    /// Valida código informado manualmente:
+    /// - Formato: II.MM.AA.NNNNN (4 partes separadas por ponto, larguras 2/2/2/5, todas numéricas).
+    /// - MM no intervalo 01..12.
+    /// - Código completo único (não pode existir igual no banco).
+    /// - Sequencial NNNNN único globalmente — não pode coincidir com sequencial de
+    ///   nenhum outro NS, mesmo que o prefixo seja diferente.
     /// </summary>
-    private async Task<string> GerarCodigo()
+    private static (bool Ok, string? Erro) ValidarCodigoManual(string codigo, List<string> codigosExistentes)
     {
+        var partes = codigo.Split('.');
+        if (partes.Length != 4)
+            return (false, "Código inválido. Formato esperado: II.MM.AA.NNNNN");
+
+        if (partes[0].Length != 2 || !int.TryParse(partes[0], out _))
+            return (false, "Idade da empresa inválida (II = 2 dígitos numéricos)");
+
+        if (partes[1].Length != 2 || !int.TryParse(partes[1], out var mes) || mes < 1 || mes > 12)
+            return (false, "Mês inválido (MM = 01..12)");
+
+        if (partes[2].Length != 2 || !int.TryParse(partes[2], out _))
+            return (false, "Ano inválido (AA = 2 dígitos numéricos)");
+
+        if (partes[3].Length != 5 || !int.TryParse(partes[3], out _))
+            return (false, "Sequencial inválido (NNNNN = 5 dígitos numéricos)");
+
+        // Código completo já existe?
+        if (codigosExistentes.Contains(codigo))
+            return (false, $"Código '{codigo}' já está em uso.");
+
+        // Sequencial isolado já apareceu em algum outro código?
+        var sequencialNovo = partes[3];
+        foreach (var existente in codigosExistentes)
+        {
+            var p = existente.Split('.');
+            if (p.Length == 4 && p[3] == sequencialNovo)
+                return (false, $"Sequencial '{sequencialNovo}' já foi usado em outro Número de Série.");
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Gera o próximo código no formato II.MM.AA.NNNNN.
+    /// AnoFundacao vem da ConfiguracaoEmpresa.
+    /// Sequencial NNNNN é o próximo após o MAIOR sequencial GLOBAL existente
+    /// (não reinicia por mês/ano/idade — a série é única e crescente).
+    /// </summary>
+    private async Task<string> GerarCodigo(List<string> codigosExistentes)
+    {
+        var anoFundacao = await _configEmpresa.GetAnoFundacao();
         var agora = DateTime.UtcNow;
-        var idadeEmpresa = agora.Year - AnoFundacao;
+        var idadeEmpresa = agora.Year - anoFundacao;
         var mes = agora.Month;
         var ano = agora.Year % 100;
 
         var prefixo = $"{idadeEmpresa:D2}.{mes:D2}.{ano:D2}";
 
-        var ultimo = await _context.NumerosSerie
-            .Where(n => n.Codigo.StartsWith(prefixo))
-            .OrderByDescending(n => n.Codigo)
-            .FirstOrDefaultAsync();
-
-        var sequencial = 1;
-
-        if (ultimo != null)
+        // Acha o maior sequencial GLOBAL — qualquer prefixo conta.
+        int maiorSeq = 0;
+        foreach (var c in codigosExistentes)
         {
-            var partes = ultimo.Codigo.Split('.');
-            if (partes.Length == 4 && int.TryParse(partes[3], out var num))
-                sequencial = num + 1;
+            var p = c.Split('.');
+            if (p.Length == 4 && int.TryParse(p[3], out var num) && num > maiorSeq)
+                maiorSeq = num;
         }
 
-        return $"{prefixo}.{sequencial:D5}";
+        var proximoSeq = maiorSeq + 1;
+        return $"{prefixo}.{proximoSeq:D5}";
     }
 
     /// <summary>

@@ -4,6 +4,16 @@
 ### NS não tem tipo nem status próprios — herda do PV vinculado.
 ### Relação 1:1 com PV. Vincula a um Produto BOM (projeto).
 ### Criação manual só em PV tipo PreVenda em status AguardandoNS.
+###
+### Pré-requisito: ConfiguracaoEmpresa.Configurado = true.
+###   Antes do primeiro PUT em /api/admin/ConfiguracaoEmpresa, qualquer Create de NS é rejeitado.
+###
+### Código:
+###   - Formato: II.MM.AA.NNNNN (idade, mês, ano, sequencial 5 dígitos).
+###   - Sequencial NNNNN é GLOBAL (único entre todos os NS, qualquer prefixo).
+###   - AnoFundacao vem de /api/admin/ConfiguracaoEmpresa.
+###   - Pode ser informado manualmente no Create (valida formato + unicidade).
+###   - NÃO pode ser alterado via Update.
 ### =============================================
 
 ### Listar todos (com dados do PV e Produto)
@@ -37,12 +47,12 @@ Accept: application/json
 
 
 ### =============================================
-### CRIAR NS (PV PreVenda em AguardandoNS)
+### TENTATIVA DE CRIAR NS SEM CONFIGURACAO
 ### =============================================
-### IDs de produtos BOM no seed: 66=PIC-500, 67=PIC-700, 68=PIC-900, 69=EST-3m, 70=EST-5m
-### PV 15 está em AguardandoNS no seed — usar ele pra testar Create
+### ANTES de qualquer Create, GET /api/admin/ConfiguracaoEmpresa
+### Se Configurado = false, este Create deve falhar com:
+### "Configure o ano de fundação da empresa antes de emitir Números de Série."
 
-### Criar NS com Produto BOM (PV 15, PIC-500)
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -51,7 +61,24 @@ Content-Type: application/json
   "produtoId": 66
 }
 
-### Criar NS sem Produto (vincula depois via PUT)
+
+### =============================================
+### CRIAR NS - CÓDIGO AUTOMÁTICO (PV PreVenda em AguardandoNS)
+### Pré-requisito: já fez PUT em /api/admin/ConfiguracaoEmpresa
+### =============================================
+### IDs de produtos BOM no seed: 66=PIC-500, 67=PIC-700, 68=PIC-900, 69=EST-3m, 70=EST-5m
+### PV 15 está em AguardandoNS no seed — usar ele pra testar Create
+
+### Criar NS com Produto BOM, código AUTOGERADO (PV 15, PIC-500)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "produtoId": 66
+}
+
+### Criar NS sem Produto (vincula depois via PUT), código AUTOGERADO
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -115,7 +142,88 @@ Content-Type: application/json
 
 
 ### =============================================
+### CRIAR NS - CÓDIGO MANUAL (PV PreVenda em AguardandoNS)
+### =============================================
+### Formato: II.MM.AA.NNNNN
+### NNNNN é único globalmente (não pode coincidir com nenhum NS já emitido).
+
+### Criar NS com código manual VÁLIDO (sequencial inédito)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "60.04.26.00100"
+}
+
+### Criar NS com código manual + Produto
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "produtoId": 66,
+  "codigo": "60.04.26.00200"
+}
+
+### Código com FORMATO inválido (poucas partes) → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "ABC.123"
+}
+
+### Código com MM inválido (mês 13) → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "60.13.26.00300"
+}
+
+### Código com NNNNN não numérico → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "60.04.26.ABCDE"
+}
+
+### Código com NNNNN largura errada (4 dígitos) → 400
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "60.04.26.0010"
+}
+
+### Código completo já existente → 400 (rode após o primeiro Create manual acima)
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "60.04.26.00100"
+}
+
+### Sequencial repetido em prefixo diferente → 400 ("Sequencial '00100' já foi usado...")
+POST {{host}}/api/comercial/NumeroSerie
+Content-Type: application/json
+
+{
+  "pedidoVendaId": 15,
+  "codigo": "59.05.26.00100"
+}
+
+
+### =============================================
 ### EDITAR NS (Engenharia vincula/troca o Produto depois)
+### Codigo NUNCA é editável — UpdateDTO não tem campo Codigo.
 ### =============================================
 
 ### Atualizar ProdutoId do NS (id=1, trocar pro PIC-700)
@@ -132,6 +240,16 @@ Content-Type: application/json
 
 {
   "produtoId": null
+}
+
+### Tentativa de "alterar Codigo" → o campo é IGNORADO silenciosamente pelo deserializador
+### (não existe no UpdateDTO). Códigos permanecem inalterados.
+PUT {{host}}/api/comercial/NumeroSerie/1
+Content-Type: application/json
+
+{
+  "produtoId": 66,
+  "codigo": "99.99.99.99999"
 }
 
 ### Atualizar com Produto sem BOM → 400

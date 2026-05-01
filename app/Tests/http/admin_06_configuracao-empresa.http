@@ -1,0 +1,91 @@
+### =============================================
+### ADMIN - CONFIGURAÇÃO DA EMPRESA (singleton)
+### =============================================
+### Tabela: Admin_ConfiguracaoEmpresa
+### Sempre 1 único registro com Id = 1.
+### Por enquanto guarda AnoFundacao e Configurado.
+###
+### Configurado = false: NS nao pode ser emitido ainda.
+### Configurado = true:  primeiro PUT bem-sucedido marca; libera emissao de NS.
+### =============================================
+
+### Buscar configuração (auto-cria com ano atual e Configurado=false se não existir)
+GET {{host}}/api/admin/ConfiguracaoEmpresa
+Accept: application/json
+
+
+### =============================================
+### UPDATE NORMAL (uso comum)
+### Bloqueado se já houver NS emitido.
+### =============================================
+
+### Configurar pela primeira vez (1966 — empresa do TCC)
+PUT {{host}}/api/admin/ConfiguracaoEmpresa
+Content-Type: application/json
+
+{
+  "anoFundacao": 1966
+}
+
+
+### Reconfigurar antes de existir NS (permitido)
+PUT {{host}}/api/admin/ConfiguracaoEmpresa
+Content-Type: application/json
+
+{
+  "anoFundacao": 1980
+}
+
+
+### AnoFundacao inválido (< 1800) → 400
+PUT {{host}}/api/admin/ConfiguracaoEmpresa
+Content-Type: application/json
+
+{
+  "anoFundacao": 1700
+}
+
+
+### AnoFundacao no futuro → 400
+PUT {{host}}/api/admin/ConfiguracaoEmpresa
+Content-Type: application/json
+
+{
+  "anoFundacao": 2099
+}
+
+
+### Tentativa de Update após existir NS → 400
+### "Não é possível alterar o ano de fundação após emitir Números de Série. Solicite ao administrador."
+### (rodar somente DEPOIS de criar pelo menos 1 NS via comercial_03_numero-serie.http)
+PUT {{host}}/api/admin/ConfiguracaoEmpresa
+Content-Type: application/json
+
+{
+  "anoFundacao": 1970
+}
+
+
+### =============================================
+### UPDATE ADMIN-OVERRIDE
+### Permite alterar mesmo que ja existam NS emitidos.
+### NS ja gerados NAO sao reescritos — ficam com o codigo original.
+### Reservado pra role Admin (autenticacao ainda nao implementada).
+### =============================================
+
+### Admin força alteração mesmo após existir NS → 204
+PUT {{host}}/api/admin/ConfiguracaoEmpresa/admin-override
+Content-Type: application/json
+
+{
+  "anoFundacao": 1970
+}
+
+
+### Admin com ano inválido → 400 (validação de faixa continua aplicada)
+PUT {{host}}/api/admin/ConfiguracaoEmpresa/admin-override
+Content-Type: application/json
+
+{
+  "anoFundacao": 1700
+}

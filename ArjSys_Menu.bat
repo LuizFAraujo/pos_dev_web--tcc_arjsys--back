@@ -14,6 +14,21 @@ REM > nul         : suprime a mensagem "Active code page: 65001" do chcp
 chcp 65001 > nul
 setlocal EnableDelayedExpansion
 
+
+REM ---- AMBIENTE - EDITE AQUI MANUALMENTE -------------------------------------
+REM    TRABALHO = usa dotnet.CMD (REVO01WKS104, sem admin)
+REM    CASA     = usa dotnet     (MAIN)
+REM ----------------------------------------------------------------------------
+set AMBIENTE=CASA
+
+REM ---- Resolve o comando do .NET a partir da variavel AMBIENTE ---------------
+if /i "%AMBIENTE%"=="TRABALHO" (
+    set DOTNET=dotnet.CMD
+) else (
+    set DOTNET=dotnet
+)
+
+
 REM ---- Variavel de controle do loop do menu ----------------------------------
 REM  true  = depois de executar uma opcao, volta ao menu
 REM  false = depois de executar uma opcao, fecha o script
@@ -43,13 +58,19 @@ echo ============================================================
 echo                    ARJSYS - MENU DE DEV
 echo ============================================================
 echo.
-echo   1 - Rodar API ^(dotnet run --project %PROJETO_API%^)
+echo     Ambiente : %AMBIENTE%
+echo     Comando  : %DOTNET%
+echo.
+echo ------------------------------------------------------------
+echo.
+echo   1 - Rodar API ^(%DOTNET% run --project %PROJETO_API%^)
 echo   2 - Rodar SeedRunner ^(popular banco com SQLs^)
-echo   3 - Build ^(dotnet build da solucao^)
+echo   3 - Build ^(%DOTNET% build da solucao^)
 echo   4 - Resetar banco ^(apaga .db + aplica migrations^)
 echo   5 - Adicionar migration ^(pede nome^)
 echo   6 - Aplicar migrations pendentes
 echo   7 - Publish release self-contained
+echo   8 - Restaurar projeto do Git ^(restore + migrations + run^)
 echo.
 echo   0 - Sair
 echo.
@@ -71,6 +92,7 @@ if "%OPCAO%"=="4" goto ACAO_RESET_DB
 if "%OPCAO%"=="5" goto ACAO_MIGRATION_ADD
 if "%OPCAO%"=="6" goto ACAO_MIGRATION_UPDATE
 if "%OPCAO%"=="7" goto ACAO_PUBLISH
+if "%OPCAO%"=="8" goto ACAO_RESTAURAR
 if "%OPCAO%"=="0" goto SAIR
 
 goto OPCAO_INVALIDA
@@ -89,7 +111,7 @@ cls
 echo.
 echo [ACAO 1] Rodando API em %PROJETO_API%...
 echo ------------------------------------------------------------
-dotnet run --project %PROJETO_API%
+%DOTNET% run --project %PROJETO_API%
 goto FIM_ACAO
 
 
@@ -106,7 +128,7 @@ cls
 echo.
 echo [ACAO 2] Rodando SeedRunner...
 echo ------------------------------------------------------------
-dotnet run --project %PROJETO_SEED%
+%DOTNET% run --project %PROJETO_SEED%
 goto FIM_ACAO
 
 
@@ -122,7 +144,7 @@ cls
 echo.
 echo [ACAO 3] Fazendo build da solucao...
 echo ------------------------------------------------------------
-dotnet build
+%DOTNET% build
 goto FIM_ACAO
 
 
@@ -170,7 +192,7 @@ if exist "%BANCO%" (
 
 echo.
 echo Aplicando migrations...
-dotnet ef database update --project %PROJETO_API%
+%DOTNET% ef database update --project %PROJETO_API%
 
 echo.
 echo Banco recriado.
@@ -205,7 +227,7 @@ if "%NOME_MIG%"=="" (
 echo.
 echo Gerando migration "%NOME_MIG%"...
 echo ------------------------------------------------------------
-dotnet ef migrations add %NOME_MIG% --project %PROJETO_API%
+%DOTNET% ef migrations add %NOME_MIG% --project %PROJETO_API%
 goto FIM_ACAO
 
 
@@ -223,7 +245,7 @@ cls
 echo.
 echo [ACAO 6] Aplicando migrations pendentes...
 echo ------------------------------------------------------------
-dotnet ef database update --project %PROJETO_API%
+%DOTNET% ef database update --project %PROJETO_API%
 goto FIM_ACAO
 
 
@@ -245,7 +267,56 @@ echo.
 echo [ACAO 7] Publicando API em modo Release self-contained...
 echo Destino: %PUBLISH_DIR%
 echo ------------------------------------------------------------
-dotnet publish %PROJETO_API% -c Release -o %PUBLISH_DIR% --self-contained true
+%DOTNET% publish %PROJETO_API% -c Release -o %PUBLISH_DIR% --self-contained true
+goto FIM_ACAO
+
+
+REM ============================================================================
+REM  ACAO 8 - Restaurar projeto do Git
+REM ----------------------------------------------------------------------------
+REM  Sequencia completa para quando o projeto foi baixado/clonado do GitHub
+REM  em uma maquina nova ou diferente. Executa na ordem:
+REM    1. dotnet restore   : baixa todos os pacotes NuGet
+REM    2. dotnet ef database update : aplica migrations (cria/atualiza banco)
+REM    3. dotnet run        : compila e roda a API
+REM
+REM  Se o restore ou o database update falhar, o script para e mostra o erro.
+REM  --project %PROJETO_API% : necessario porque ha .sln e .csproj na pasta
+REM ============================================================================
+:ACAO_RESTAURAR
+cls
+echo.
+echo [ACAO 8] RESTAURAR PROJETO DO GIT
+echo ============================================================
+echo.
+echo  Etapa 1/3 - Restaurando pacotes NuGet...
+echo ------------------------------------------------------------
+%DOTNET% restore %PROJETO_API%
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Falha no restore. Verifique a conexao com a internet.
+    goto FIM_ACAO
+)
+
+echo.
+echo  Etapa 2/3 - Aplicando migrations no banco...
+echo ------------------------------------------------------------
+%DOTNET% ef database update --project %PROJETO_API%
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Falha nas migrations.
+    echo        Verifique se o dotnet-ef esta instalado:
+    echo        %DOTNET% tool install --global dotnet-ef
+    goto FIM_ACAO
+)
+
+echo.
+echo  Etapa 3/3 - Rodando API...
+echo ------------------------------------------------------------
+echo  API vai subir em http://localhost:7000
+echo  Ctrl+C para encerrar.
+echo.
+%DOTNET% run --project %PROJETO_API%
 goto FIM_ACAO
 
 
