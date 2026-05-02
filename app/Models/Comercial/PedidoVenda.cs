@@ -1,5 +1,6 @@
 using Api_ArjSys_Tcc.Models.Admin;
 using Api_ArjSys_Tcc.Models.Comercial.Enums;
+using Api_ArjSys_Tcc.Models.Engenharia;
 
 namespace Api_ArjSys_Tcc.Models.Comercial;
 
@@ -32,4 +33,12 @@ public class PedidoVenda : BaseEntity
 
     /// <summary>Observações gerais do pedido</summary>
     public string? Observacoes { get; set; }
+
+    /// <summary>
+    /// FK opcional pro Produto BOM raiz que a Engenharia liberou como Projeto deste PV.
+    /// Quando setado, Produção pode criar OP Master usando esse produto sem precisar escolher.
+    /// Em PreVenda, ao criar NS com Produto, este campo é sincronizado automaticamente.
+    /// </summary>
+    public int? ProdutoBomId { get; set; }
+    public Produto? ProdutoBom { get; set; }
 }

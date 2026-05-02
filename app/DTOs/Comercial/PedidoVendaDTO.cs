@@ -92,8 +92,23 @@ public class PedidoVendaResponseDTO
     public string? Observacoes { get; set; }
     public List<PedidoVendaItemResponseDTO> Itens { get; set; } = [];
     public int TotalItens { get; set; }
+
+    /// <summary>Projeto BOM liberado pela Engenharia (opcional). Null = não liberado.</summary>
+    public int? ProdutoBomId { get; set; }
+    public string? ProdutoBomCodigo { get; set; }
+    public string? ProdutoBomDescricao { get; set; }
+
     public DateTime CriadoEm { get; set; }
     public DateTime? ModificadoEm { get; set; }
+}
+
+/// <summary>
+/// Entrada — liberação de Projeto (Produto BOM) num Pedido de Venda pela Engenharia.
+/// ProdutoBomId null limpa a liberação.
+/// </summary>
+public class DefinirProjetoDTO
+{
+    public int? ProdutoBomId { get; set; }
 }
 
 /// <summary>

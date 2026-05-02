@@ -7,6 +7,21 @@
 ### Integrações automáticas:
 ### - OP → Andamento: se PV em Liberado, PV auto-vai para Andamento
 ### - Master → Concluida (todas): PV auto-vai para Concluido
+###
+### Itens da Master:
+### - Ao criar Master, o sistema EXPLODE a BOM do Produto raiz e cria 1 item
+###   por produto único, com quantidade total consolidada (mesmo produto em
+###   vários níveis vira uma linha só, somando as quantidades).
+### - Tipo (Fabricado/Comprado/MateriaPrima/...) não filtra — todos entram.
+### - Apontamento direto nos itens da Master (não precisa criar Filhas pra
+###   poder apontar).
+###
+### Pré-requisito (PV vinculado):
+### - PV precisa ter um Projeto liberado pela Engenharia (pv.ProdutoBomId).
+### - O ProdutoId do POST deve ser o mesmo do Projeto liberado, senão 400.
+### - Use PATCH /api/comercial/PedidoVenda/{id}/projeto pra liberar antes.
+### - Em OP de estoque (sem PV) essa regra não se aplica — pode escolher
+###   qualquer produto Fabricado com BOM.
 ### =============================================
 
 ### Listar todas
@@ -23,6 +38,8 @@ Accept: application/json
 ### =============================================
 
 ### Master PV 12 (Liberado) + PIC-500 (id=66)
+### Após criar, GET /api/producao/OrdemProducao/{id} deve trazer os itens já
+### populados pela explosão da BOM (1 linha por produto único da árvore).
 POST {{host}}/api/producao/OrdemProducao/master
 Content-Type: application/json
 

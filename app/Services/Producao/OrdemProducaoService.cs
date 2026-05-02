@@ -96,6 +96,14 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
 
             if (!StatusPvPermiteCriarOp(pv.Status))
                 return (null, $"PV deve estar em Liberado, Andamento ou Pausado para receber OPs (atual: {pv.Status})");
+
+            // Engenharia precisa ter liberado o Projeto antes da OP poder existir.
+            if (!pv.ProdutoBomId.HasValue)
+                return (null, "Engenharia ainda não liberou o Projeto deste PV. Acesse Engenharia → Liberação de Projetos.");
+
+            // Produto da OP deve bater com o Projeto liberado pela Engenharia.
+            if (pv.ProdutoBomId.Value != dto.ProdutoId)
+                return (null, $"Produto da OP ({dto.ProdutoId}) não confere com o Projeto liberado no PV ({pv.ProdutoBomId}). Use o produto que a Engenharia liberou ou peça pra ela trocar.");
         }
 
         var produto = await _context.Produtos.FindAsync(dto.ProdutoId);
@@ -125,6 +133,24 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
 
         _context.OrdensProducao.Add(op);
         await _context.SaveChangesAsync();
+
+        // BOM achatada: explode a árvore e cria 1 item por produto único, com a
+        // quantidade total consolidada. Mesmo produto que aparece em múltiplos
+        // níveis vira uma linha só com a soma. Tipo do produto (Fabricado/
+        // Comprado/MateriaPrima) não filtra — Produção precisa ver tudo.
+        var explosao = await ExplodirBom(produto.Id);
+        var agoraItem = DateTime.UtcNow;
+        foreach (var (produtoFilhoId, quantidade) in explosao)
+        {
+            _context.OrdensProducaoItens.Add(new OrdemProducaoItem
+            {
+                OrdemProducaoId = op.Id,
+                ProdutoId = produtoFilhoId,
+                QuantidadePlanejada = quantidade,
+                QuantidadeProduzida = 0,
+                CriadoEm = agoraItem
+            });
+        }
 
         RegistrarEvento(op.Id, EventoOrdemProducao.Criada, null, StatusOrdemProducao.Pendente, null, null);
         await _context.SaveChangesAsync();

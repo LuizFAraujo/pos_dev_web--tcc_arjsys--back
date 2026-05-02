@@ -23,5 +23,11 @@ public class PedidoVendaConfiguration : IEntityTypeConfiguration<PedidoVenda>
                .WithMany()
                .HasForeignKey(p => p.ClienteId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        // Projeto BOM liberado pela Engenharia (opcional)
+        builder.HasOne(p => p.ProdutoBom)
+               .WithMany()
+               .HasForeignKey(p => p.ProdutoBomId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

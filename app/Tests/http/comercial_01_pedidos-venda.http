@@ -211,6 +211,48 @@ Content-Type: application/json
 
 
 ### =============================================
+### LIBERAÇÃO DE PROJETO (Engenharia → Produção)
+### =============================================
+### A Engenharia define qual Produto BOM é o "Projeto" do PV.
+### Produção precisa disso pra criar OP Master (back valida pv.ProdutoBomId).
+### Em PreVenda, criar/editar NS com Produto também sincroniza este campo
+### (NS.ProdutoId → PV.ProdutoBomId), mas o PATCH abaixo é o caminho oficial
+### pra PV Normal (que pode não ter NS).
+
+### Liberar Projeto (PIC-500 = id 66) no PV 12
+PATCH {{host}}/api/comercial/PedidoVenda/12/projeto
+Content-Type: application/json
+
+{
+  "produtoBomId": 66
+}
+
+### Trocar Projeto (PIC-700 = id 67)
+PATCH {{host}}/api/comercial/PedidoVenda/12/projeto
+Content-Type: application/json
+
+{
+  "produtoBomId": 67
+}
+
+### Limpar Projeto (passar null)
+PATCH {{host}}/api/comercial/PedidoVenda/12/projeto
+Content-Type: application/json
+
+{
+  "produtoBomId": null
+}
+
+### ERRO — Produto sem BOM (PRF-001 = id 16, comprado) → 400
+PATCH {{host}}/api/comercial/PedidoVenda/12/projeto
+Content-Type: application/json
+
+{
+  "produtoBomId": 16
+}
+
+
+### =============================================
 ### EXCLUIR
 ### =============================================
 

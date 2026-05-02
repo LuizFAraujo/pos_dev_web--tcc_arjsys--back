@@ -40,6 +40,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         var query = _context.PedidosVenda
             .Include(p => p.Cliente)
                 .ThenInclude(c => c.Pessoa)
+            .Include(p => p.ProdutoBom)
             .OrderByDescending(p => p.Data);
 
         List<PedidoVenda> pedidos;
@@ -69,6 +70,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         var pedido = await _context.PedidosVenda
             .Include(p => p.Cliente)
                 .ThenInclude(c => c.Pessoa)
+            .Include(p => p.ProdutoBom)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (pedido == null) return null;
@@ -412,6 +414,44 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
     }
 
     // ========================================================================
+    // PROJETO (Liberação de Produto BOM pela Engenharia)
+    // ========================================================================
+
+    /// <summary>
+    /// Define ou limpa o Projeto (Produto BOM) liberado pela Engenharia para o PV.
+    /// Validações:
+    /// - PV existe;
+    /// - Se ProdutoBomId informado: produto existe, está ativo e tem BOM (estrutura);
+    /// - ProdutoBomId null limpa a liberação.
+    /// </summary>
+    public async Task<(bool Sucesso, string? Erro)> DefinirProjeto(int id, DefinirProjetoDTO dto)
+    {
+        var pedido = await _context.PedidosVenda.FindAsync(id);
+        if (pedido == null)
+            return (false, null);
+
+        if (dto.ProdutoBomId.HasValue)
+        {
+            var produto = await _context.Produtos.FindAsync(dto.ProdutoBomId.Value);
+            if (produto == null)
+                return (false, "Produto não encontrado");
+            if (!produto.Ativo)
+                return (false, "Produto está inativo");
+
+            var temBom = await _context.EstruturasProdutos
+                .AnyAsync(e => e.ProdutoPaiId == dto.ProdutoBomId.Value);
+            if (!temBom)
+                return (false, "Produto precisa ter estrutura (BOM) para ser liberado como Projeto");
+        }
+
+        pedido.ProdutoBomId = dto.ProdutoBomId;
+        pedido.ModificadoEm = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return (true, null);
+    }
+
+    // ========================================================================
     // DELETE
     // ========================================================================
 
@@ -735,6 +775,9 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
             ModificadoEm = i.ModificadoEm
         }).ToList(),
         TotalItens = itens.Count,
+        ProdutoBomId = p.ProdutoBomId,
+        ProdutoBomCodigo = p.ProdutoBom?.Codigo,
+        ProdutoBomDescricao = p.ProdutoBom?.Descricao,
         CriadoEm = p.CriadoEm,
         ModificadoEm = p.ModificadoEm
     };

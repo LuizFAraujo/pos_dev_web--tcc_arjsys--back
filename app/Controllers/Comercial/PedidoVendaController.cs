@@ -88,6 +88,24 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     }
 
     /// <summary>
+    /// Define ou limpa o Projeto (Produto BOM) liberado pela Engenharia para o PV.
+    /// Body: { "produtoBomId": 66 } — ou null pra limpar a liberação.
+    /// </summary>
+    [HttpPatch("{id:int}/projeto")]
+    public async Task<IActionResult> DefinirProjeto(int id, DefinirProjetoDTO dto)
+    {
+        var (sucesso, erro) = await _service.DefinirProjeto(id, dto);
+
+        if (erro != null)
+            return BadRequest(new { erro });
+
+        if (!sucesso)
+            return NotFound();
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// Exclui PV. Permitido apenas em AguardandoNS ou Liberado, sem NS e sem OPs vinculadas.
     /// </summary>
     [HttpDelete("{id:int}")]

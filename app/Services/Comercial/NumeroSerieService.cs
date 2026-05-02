@@ -170,6 +170,16 @@ public class NumeroSerieService(
         };
 
         _context.NumerosSerie.Add(ns);
+
+        // Sincroniza Projeto do PV: se o NS tem produto, ele é o Projeto BOM
+        // do PV. Mantém PedidoVenda.ProdutoBomId em fase com o NS pra Produção
+        // ler num lugar só (sem precisar de fallback NS).
+        if (dto.ProdutoId.HasValue && pedido.ProdutoBomId != dto.ProdutoId)
+        {
+            pedido.ProdutoBomId = dto.ProdutoId;
+            pedido.ModificadoEm = DateTime.UtcNow;
+        }
+
         await _context.SaveChangesAsync();
 
         // Transição automática: AguardandoNS → RecebidoNS.
@@ -208,6 +218,14 @@ public class NumeroSerieService(
 
         ns.ProdutoId = dto.ProdutoId;
         ns.ModificadoEm = DateTime.UtcNow;
+
+        // Sincroniza Projeto do PV vinculado.
+        var pedido = await _context.PedidosVenda.FindAsync(ns.PedidoVendaId);
+        if (pedido != null && pedido.ProdutoBomId != dto.ProdutoId)
+        {
+            pedido.ProdutoBomId = dto.ProdutoId;
+            pedido.ModificadoEm = DateTime.UtcNow;
+        }
 
         await _context.SaveChangesAsync();
         return (true, null);
