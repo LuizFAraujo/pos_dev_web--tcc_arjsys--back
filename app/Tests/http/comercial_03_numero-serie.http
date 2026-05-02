@@ -14,6 +14,12 @@
 ###   - AnoFundacao vem de /api/admin/ConfiguracaoEmpresa.
 ###   - Pode ser informado manualmente no Create (valida formato + unicidade).
 ###   - NÃO pode ser alterado via Update.
+###
+### Transição automática de status:
+###   - Após Create bem-sucedido, o PV vinculado transiciona AguardandoNS → RecebidoNS.
+###   - Histórico do PV registra evento NsRecebido (sem justificativa — fluxo natural).
+###   - Reflexo prático: o segundo Create no mesmo PV cai no caminho "PV PreVenda
+###     não-AguardandoNS" (PV agora está em RecebidoNS).
 ### =============================================
 
 ### Listar todos (com dados do PV e Produto)
@@ -67,9 +73,13 @@ Content-Type: application/json
 ### Pré-requisito: já fez PUT em /api/admin/ConfiguracaoEmpresa
 ### =============================================
 ### IDs de produtos BOM no seed: 66=PIC-500, 67=PIC-700, 68=PIC-900, 69=EST-3m, 70=EST-5m
-### PV 15 está em AguardandoNS no seed — usar ele pra testar Create
+### PV 15 está em AguardandoNS no seed — usar ele pra testar Create.
+### IMPORTANTE: após o primeiro Create bem-sucedido, o PV 15 sai de AguardandoNS
+### (vai pra RecebidoNS). As tentativas seguintes no mesmo PV passam a falhar com
+### "PV PreVenda só aceita NS em status AguardandoNS".
 
 ### Criar NS com Produto BOM, código AUTOGERADO (PV 15, PIC-500)
+### Após sucesso: PV 15 transiciona AguardandoNS → RecebidoNS automaticamente.
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -79,6 +89,7 @@ Content-Type: application/json
 }
 
 ### Criar NS sem Produto (vincula depois via PUT), código AUTOGERADO
+### NOTA: este só funciona se rodar ANTES do Create acima (ou em outro PV em AguardandoNS).
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 
@@ -86,7 +97,8 @@ Content-Type: application/json
   "pedidoVendaId": 15
 }
 
-### Criar segundo NS pro mesmo PV → 400 (1:1)
+### Criar segundo NS pro mesmo PV → 400
+### Após primeiro Create, falha por dois motivos: 1:1 já satisfeito E status saiu de AguardandoNS.
 POST {{host}}/api/comercial/NumeroSerie
 Content-Type: application/json
 

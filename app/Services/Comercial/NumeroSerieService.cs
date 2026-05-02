@@ -24,11 +24,20 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// - Sequencial NNNNN é único GLOBAL (entre todos os NS, qualquer prefixo).
 /// - Pode ser informado manualmente no Create (valida formato + unicidade).
 /// - Não pode ser alterado no Update (NumeroSerieUpdateDTO não tem campo Codigo).
+///
+/// Transição automática de status:
+/// - Após Create bem-sucedido, o PV vinculado é transicionado de AguardandoNS para
+///   RecebidoNS via PedidoVendaService.AlterarStatus (registra histórico com evento
+///   NsRecebido). Sem justificativa — é fluxo natural.
 /// </summary>
-public class NumeroSerieService(AppDbContext context, ConfiguracaoEmpresaService configEmpresa)
+public class NumeroSerieService(
+    AppDbContext context,
+    ConfiguracaoEmpresaService configEmpresa,
+    PedidoVendaService pedidoService)
 {
     private readonly AppDbContext _context = context;
     private readonly ConfiguracaoEmpresaService _configEmpresa = configEmpresa;
+    private readonly PedidoVendaService _pedidoService = pedidoService;
 
     /// <summary>
     /// Lista todos os NS com dados do PV e Produto vinculados. Suporta paginação.
@@ -91,6 +100,11 @@ public class NumeroSerieService(AppDbContext context, ConfiguracaoEmpresaService
     /// - Se ProdutoId informado, Produto deve existir e ter BOM;
     /// - Se Codigo informado, valida formato e unicidade (completo + sequencial isolado);
     /// - Se Codigo omitido, gera automaticamente.
+    ///
+    /// Após criar o NS, transiciona o PV de AguardandoNS para RecebidoNS
+    /// (via PedidoVendaService.AlterarStatus — registra histórico, evento NsRecebido).
+    /// Se a transição falhar, o NS já foi persistido e a falha é reportada como erro
+    /// (caso raro: transição é válida e não exige justificativa).
     /// </summary>
     public async Task<(NumeroSerieResponseDTO? Item, string? Erro)> Create(NumeroSerieCreateDTO dto)
     {
@@ -157,6 +171,16 @@ public class NumeroSerieService(AppDbContext context, ConfiguracaoEmpresaService
 
         _context.NumerosSerie.Add(ns);
         await _context.SaveChangesAsync();
+
+        // Transição automática: AguardandoNS → RecebidoNS.
+        // PV chegou aqui obrigatoriamente em AguardandoNS (validado acima),
+        // então a transição é sempre aplicável.
+        var (transOk, transErro) = await _pedidoService.AlterarStatus(
+            pedido.Id,
+            new StatusPedidoVendaDTO { NovoStatus = StatusPedidoVenda.RecebidoNS });
+
+        if (!transOk)
+            return (null, $"NS criado, mas falha ao transicionar PV para RecebidoNS: {transErro}");
 
         // Recarrega com includes pra response
         return await GetById(ns.Id) is { } response
