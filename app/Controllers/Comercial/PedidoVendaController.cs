@@ -89,7 +89,7 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
 
     /// <summary>
     /// Define ou limpa o Projeto (Produto BOM) liberado pela Engenharia para o PV.
-    /// Body: { "produtoBomId": 66 } — ou null pra limpar a liberação.
+    /// Body: { "produtoBomId": 66 } - ou null pra limpar a liberação.
     /// </summary>
     [HttpPatch("{id:int}/projeto")]
     public async Task<IActionResult> DefinirProjeto(int id, DefinirProjetoDTO dto)

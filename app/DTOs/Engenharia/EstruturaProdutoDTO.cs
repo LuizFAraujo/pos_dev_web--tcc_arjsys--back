@@ -2,7 +2,7 @@
 
 namespace Api_ArjSys_Tcc.DTOs.Engenharia;
 
-// Entrada — usado no POST e PUT
+// Entrada - usado no POST e PUT
 public class EstruturaProdutoCreateDTO
 {
     public int ProdutoPaiId { get; set; }
@@ -12,7 +12,7 @@ public class EstruturaProdutoCreateDTO
     public string? Observacao { get; set; }
 }
 
-// Saída — retornado pela API
+// Saída - retornado pela API
 public class EstruturaProdutoResponseDTO
 {
     public int Id { get; set; }
@@ -27,7 +27,7 @@ public class EstruturaProdutoResponseDTO
     public DateTime? ModificadoEm { get; set; }
 }
 
-// Saída Flat — exibe pai e filho lado a lado
+// Saída Flat - exibe pai e filho lado a lado
 public class EstruturaProdutoFlatDTO
 {
     public int Id { get; set; }

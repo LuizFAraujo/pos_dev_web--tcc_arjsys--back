@@ -23,5 +23,10 @@ public class OrdemProducaoHistoricoConfiguration : IEntityTypeConfiguration<Orde
                .WithMany()
                .HasForeignKey(h => h.OrdemProducaoId)
                .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(h => h.OrdemProducaoItem)
+               .WithMany()
+               .HasForeignKey(h => h.OrdemProducaoItemId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

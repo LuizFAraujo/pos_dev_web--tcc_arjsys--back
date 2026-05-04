@@ -63,7 +63,7 @@ public class NumeroSerieController(NumeroSerieService service) : ControllerBase
     }
 
     /// <summary>
-    /// Atualiza dados do NS (apenas campos próprios do NS — PV é readonly aqui).
+    /// Atualiza dados do NS (apenas campos próprios do NS - PV é readonly aqui).
     /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, NumeroSerieUpdateDTO dto)

@@ -6,7 +6,7 @@ namespace Api_ArjSys_Tcc.Models.Engenharia;
 /// </summary>
 public class PathDocumentos : BaseEntity
 {
-    /// <summary>FK para GrupoProduto (apenas Coluna1 — prefixos)</summary>
+    /// <summary>FK para GrupoProduto (apenas Coluna1 - prefixos)</summary>
     public int GrupoProdutoId { get; set; }
     public GrupoProduto GrupoProduto { get; set; } = null!;
 

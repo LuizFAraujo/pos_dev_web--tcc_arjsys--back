@@ -3,11 +3,11 @@ using Api_ArjSys_Tcc.Models.Engenharia;
 namespace Api_ArjSys_Tcc.Models.Producao;
 
 /// <summary>
-/// Item da Ordem de Produção — snapshot de um produto da BOM.
+/// Item da Ordem de Produção - snapshot de um produto da BOM.
 /// QuantidadePlanejada é fixa (snapshot no momento da criação).
 /// QuantidadeProduzida cresce conforme apontamentos da produção.
 /// Se a BOM mudar após a OP ser criada, a diferença é detectada pelo endpoint
-/// de divergência — a OP em si não se auto-ajusta (snapshot).
+/// de divergência - a OP em si não se auto-ajusta (snapshot).
 /// </summary>
 public class OrdemProducaoItem : BaseEntity
 {

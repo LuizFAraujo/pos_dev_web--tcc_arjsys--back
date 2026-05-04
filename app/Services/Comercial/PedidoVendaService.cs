@@ -84,7 +84,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
     }
 
     // ========================================================================
-    // CREATE — atômico, PV + itens numa transação
+    // CREATE - atômico, PV + itens numa transação
     // ========================================================================
 
     /// <summary>
@@ -185,7 +185,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
     }
 
     // ========================================================================
-    // UPDATE — atômico, cabeçalho + diff de itens numa transação
+    // UPDATE - atômico, cabeçalho + diff de itens numa transação
     // ========================================================================
 
     /// <summary>
@@ -532,7 +532,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         {
             ModuloDestino = ModuloSistema.Producao,
             Tipo = TipoNotificacao.Aviso,
-            Titulo = $"PV {pv.Codigo} cancelado — há OPs ativas",
+            Titulo = $"PV {pv.Codigo} cancelado - há OPs ativas",
             Mensagem = $"Motivo: {justificativa ?? "(sem justificativa)"}. Avaliar cancelamento das OPs.",
             OrigemTabela = "Comercial_PedidosVenda",
             OrigemId = pv.Id
@@ -552,7 +552,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         {
             ModuloDestino = ModuloSistema.Producao,
             Tipo = TipoNotificacao.Aviso,
-            Titulo = $"PV {pv.Codigo} pausado — há OPs ativas",
+            Titulo = $"PV {pv.Codigo} pausado - há OPs ativas",
             Mensagem = $"Motivo: {justificativa ?? "(sem justificativa)"}. Avaliar pausa das OPs.",
             OrigemTabela = "Comercial_PedidosVenda",
             OrigemId = pv.Id
@@ -680,7 +680,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
     };
 
     /// <summary>
-    /// Status iniciais — edição livre, sem justificativa, sem notificação.
+    /// Status iniciais - edição livre, sem justificativa, sem notificação.
     /// </summary>
     public static bool StatusPermiteEdicao(StatusPedidoVenda status) => status switch
     {
@@ -692,7 +692,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
     };
 
     /// <summary>
-    /// Status avançados — edição permitida COM justificativa obrigatória + registra no histórico + notifica.
+    /// Status avançados - edição permitida COM justificativa obrigatória + registra no histórico + notifica.
     /// Entregue/Devolvido/Cancelado/Reaberto continuam BLOQUEADOS (não caem aqui).
     /// </summary>
     public static bool StatusPermiteEdicaoComJustificativa(StatusPedidoVenda status) => status switch

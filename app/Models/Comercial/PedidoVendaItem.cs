@@ -1,7 +1,7 @@
 namespace Api_ArjSys_Tcc.Models.Comercial;
 
 /// <summary>
-/// Item do Pedido de Venda — descrição livre.
+/// Item do Pedido de Venda - descrição livre.
 /// Sem vínculo com Produto cadastrado. A vinculação técnica acontece na engenharia (NS/projeto).
 /// </summary>
 public class PedidoVendaItem : BaseEntity

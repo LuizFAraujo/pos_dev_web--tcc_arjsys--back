@@ -9,7 +9,7 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 
 /// <summary>
 /// Serviço do Número de Série.
-/// NS não tem tipo nem status próprios — herda do PV vinculado (exibição readonly).
+/// NS não tem tipo nem status próprios - herda do PV vinculado (exibição readonly).
 /// Relação 1:1 com PV.
 /// Criação manual só para PV tipo PreVenda em status AguardandoNS.
 /// PV tipo Normal recebe NS automaticamente via Ordem de Produção (Fase 3b).
@@ -20,7 +20,7 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 ///
 /// Código:
 /// - Formato: II.MM.AA.NNNNN (idade da empresa, mês, ano, sequencial 5 dígitos).
-/// - AnoFundacao vem da ConfiguracaoEmpresa (Admin) — antes era const hardcoded.
+/// - AnoFundacao vem da ConfiguracaoEmpresa (Admin) - antes era const hardcoded.
 /// - Sequencial NNNNN é único GLOBAL (entre todos os NS, qualquer prefixo).
 /// - Pode ser informado manualmente no Create (valida formato + unicidade).
 /// - Não pode ser alterado no Update (NumeroSerieUpdateDTO não tem campo Codigo).
@@ -28,7 +28,7 @@ namespace Api_ArjSys_Tcc.Services.Comercial;
 /// Transição automática de status:
 /// - Após Create bem-sucedido, o PV vinculado é transicionado de AguardandoNS para
 ///   RecebidoNS via PedidoVendaService.AlterarStatus (registra histórico com evento
-///   NsRecebido). Sem justificativa — é fluxo natural.
+///   NsRecebido). Sem justificativa - é fluxo natural.
 /// </summary>
 public class NumeroSerieService(
     AppDbContext context,
@@ -102,7 +102,7 @@ public class NumeroSerieService(
     /// - Se Codigo omitido, gera automaticamente.
     ///
     /// Após criar o NS, transiciona o PV de AguardandoNS para RecebidoNS
-    /// (via PedidoVendaService.AlterarStatus — registra histórico, evento NsRecebido).
+    /// (via PedidoVendaService.AlterarStatus - registra histórico, evento NsRecebido).
     /// Se a transição falhar, o NS já foi persistido e a falha é reportada como erro
     /// (caso raro: transição é válida e não exige justificativa).
     /// </summary>
@@ -139,7 +139,7 @@ public class NumeroSerieService(
                 return (null, erroProduto);
         }
 
-        // Carrega TODOS os códigos existentes em uma única query — usado tanto pelo
+        // Carrega TODOS os códigos existentes em uma única query - usado tanto pelo
         // ValidarCodigoManual quanto pelo GerarCodigo (evita duas queries pesadas).
         var codigosExistentes = await _context.NumerosSerie
             .Select(n => n.Codigo)
@@ -200,7 +200,7 @@ public class NumeroSerieService(
 
     /// <summary>
     /// Atualiza o Produto vinculado ao NS. Valida que o Produto tem BOM.
-    /// Codigo NÃO pode ser alterado aqui — não há campo no UpdateDTO.
+    /// Codigo NÃO pode ser alterado aqui - não há campo no UpdateDTO.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> Update(int id, NumeroSerieUpdateDTO dto)
     {
@@ -259,7 +259,7 @@ public class NumeroSerieService(
     /// - Formato: II.MM.AA.NNNNN (4 partes separadas por ponto, larguras 2/2/2/5, todas numéricas).
     /// - MM no intervalo 01..12.
     /// - Código completo único (não pode existir igual no banco).
-    /// - Sequencial NNNNN único globalmente — não pode coincidir com sequencial de
+    /// - Sequencial NNNNN único globalmente - não pode coincidir com sequencial de
     ///   nenhum outro NS, mesmo que o prefixo seja diferente.
     /// </summary>
     private static (bool Ok, string? Erro) ValidarCodigoManual(string codigo, List<string> codigosExistentes)
@@ -300,7 +300,7 @@ public class NumeroSerieService(
     /// Gera o próximo código no formato II.MM.AA.NNNNN.
     /// AnoFundacao vem da ConfiguracaoEmpresa.
     /// Sequencial NNNNN é o próximo após o MAIOR sequencial GLOBAL existente
-    /// (não reinicia por mês/ano/idade — a série é única e crescente).
+    /// (não reinicia por mês/ano/idade - a série é única e crescente).
     /// </summary>
     private async Task<string> GerarCodigo(List<string> codigosExistentes)
     {
@@ -312,7 +312,7 @@ public class NumeroSerieService(
 
         var prefixo = $"{idadeEmpresa:D2}.{mes:D2}.{ano:D2}";
 
-        // Acha o maior sequencial GLOBAL — qualquer prefixo conta.
+        // Acha o maior sequencial GLOBAL - qualquer prefixo conta.
         int maiorSeq = 0;
         foreach (var c in codigosExistentes)
         {

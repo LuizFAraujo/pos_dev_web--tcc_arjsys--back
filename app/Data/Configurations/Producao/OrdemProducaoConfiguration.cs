@@ -19,7 +19,7 @@ public class OrdemProducaoConfiguration : IEntityTypeConfiguration<OrdemProducao
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(o => o.Observacoes).HasMaxLength(500);
 
-        // PV opcional — OP de estoque tem PedidoVendaId null
+        // PV opcional - OP de estoque tem PedidoVendaId null
         builder.HasOne(o => o.PedidoVenda)
                .WithMany()
                .HasForeignKey(o => o.PedidoVendaId)

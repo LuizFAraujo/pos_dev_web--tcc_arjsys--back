@@ -2,11 +2,11 @@ using Api_ArjSys_Tcc.Models.Producao.Enums;
 
 namespace Api_ArjSys_Tcc.DTOs.Producao;
 
-// Classe âncora — evita rename automático do VS Code
+// Classe âncora - evita rename automático do VS Code
 public partial class OrdemProducaoDTO { }
 
 /// <summary>
-/// Entrada — criar OP Master. PV é OPCIONAL (null = OP de estoque/independente).
+/// Entrada - criar OP Master. PV é OPCIONAL (null = OP de estoque/independente).
 /// Se PV informado, deve estar em Liberado, Andamento ou Pausado.
 /// </summary>
 public class OrdemProducaoMasterCreateDTO
@@ -17,7 +17,7 @@ public class OrdemProducaoMasterCreateDTO
 }
 
 /// <summary>
-/// Entrada — criar OP Filha. Herda PV do Master, define Produto da BOM.
+/// Entrada - criar OP Filha. Herda PV do Master, define Produto da BOM.
 /// </summary>
 public class OrdemProducaoFilhaCreateDTO
 {
@@ -144,6 +144,7 @@ public class OrdemProducaoHistoricoResponseDTO
 {
     public int Id { get; set; }
     public int OrdemProducaoId { get; set; }
+    public int? OrdemProducaoItemId { get; set; }
     public EventoOrdemProducao Evento { get; set; }
     public StatusOrdemProducao? StatusAnterior { get; set; }
     public StatusOrdemProducao? StatusNovo { get; set; }

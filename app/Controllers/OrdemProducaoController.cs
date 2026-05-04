@@ -75,6 +75,16 @@ public class OrdemProducaoController(OrdemProducaoService service) : ControllerB
     }
 
     /// <summary>
+    /// Histórico filtrado por item da OP - traz eventos da OP (sem item)
+    /// + apontamentos do item informado.
+    /// </summary>
+    [HttpGet("{id:int}/itens/{itemId:int}/historico")]
+    public async Task<ActionResult<List<OrdemProducaoHistoricoResponseDTO>>> GetHistoricoItem(int id, int itemId)
+    {
+        return await _service.GetHistorico(id, itemId);
+    }
+
+    /// <summary>
     /// Cria OP Master (PV + Produto raiz).
     /// </summary>
     [HttpPost("master")]

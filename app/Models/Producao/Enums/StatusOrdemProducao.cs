@@ -6,7 +6,7 @@ namespace Api_ArjSys_Tcc.Models.Producao.Enums;
 /// Fluxo normal: Pendente → Andamento → Concluida
 /// Especiais (manuais, com justificativa): Pausada, Cancelada
 ///
-/// Status de Master e Filhas são independentes — para saber o andamento geral
+/// Status de Master e Filhas são independentes - para saber o andamento geral
 /// de uma Master, consultar o status de suas filhas.
 /// </summary>
 public enum StatusOrdemProducao

@@ -1,9 +1,9 @@
 namespace Api_ArjSys_Tcc.DTOs.Engenharia;
 
-/// <summary>Entrada — usado no POST</summary>
+/// <summary>Entrada - usado no POST</summary>
 public class PathDocumentosCreateDTO
 {
-    /// <summary>FK para GrupoProduto (apenas Coluna1 — prefixos)</summary>
+    /// <summary>FK para GrupoProduto (apenas Coluna1 - prefixos)</summary>
     public int GrupoProdutoId { get; set; }
 
     /// <summary>Caminho alternativo para documentos deste prefixo</summary>
@@ -16,7 +16,7 @@ public class PathDocumentosCreateDTO
     public bool Ativo { get; set; } = true;
 }
 
-/// <summary>Entrada — usado no PUT (sem GrupoProdutoId, não pode trocar o prefixo)</summary>
+/// <summary>Entrada - usado no PUT (sem GrupoProdutoId, não pode trocar o prefixo)</summary>
 public class PathDocumentosUpdateDTO
 {
     /// <summary>Caminho alternativo para documentos deste prefixo</summary>
@@ -29,7 +29,7 @@ public class PathDocumentosUpdateDTO
     public bool Ativo { get; set; } = true;
 }
 
-/// <summary>Saída — retorno dos endpoints</summary>
+/// <summary>Saída - retorno dos endpoints</summary>
 public class PathDocumentosResponseDTO
 {
     public int Id { get; set; }

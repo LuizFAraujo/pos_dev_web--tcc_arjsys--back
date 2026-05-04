@@ -94,7 +94,7 @@ public class ClienteService(AppDbContext context)
             }
             catch (DbUpdateException) when (tentativa < maxTentativas)
             {
-                // Colisão no unique index — limpa tracking e tenta de novo
+                // Colisão no unique index - limpa tracking e tenta de novo
                 foreach (var entry in _context.ChangeTracker.Entries().ToList())
                     entry.State = EntityState.Detached;
             }

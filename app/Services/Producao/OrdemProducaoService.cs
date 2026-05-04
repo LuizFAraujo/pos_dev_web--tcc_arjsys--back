@@ -79,7 +79,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
     }
 
     // ========================================================================
-    // CRIAÇÃO — MASTER
+    // CRIAÇÃO - MASTER
     // ========================================================================
 
     /// <summary>
@@ -137,7 +137,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
         // BOM achatada: explode a árvore e cria 1 item por produto único, com a
         // quantidade total consolidada. Mesmo produto que aparece em múltiplos
         // níveis vira uma linha só com a soma. Tipo do produto (Fabricado/
-        // Comprado/MateriaPrima) não filtra — Produção precisa ver tudo.
+        // Comprado/MateriaPrima) não filtra - Produção precisa ver tudo.
         var explosao = await ExplodirBom(produto.Id);
         var agoraItem = DateTime.UtcNow;
         foreach (var (produtoFilhoId, quantidade) in explosao)
@@ -164,7 +164,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
     }
 
     // ========================================================================
-    // CRIAÇÃO — FILHA
+    // CRIAÇÃO - FILHA
     // ========================================================================
 
     public async Task<(OrdemProducaoResponseDTO? Item, string? Erro)> CriarFilha(OrdemProducaoFilhaCreateDTO dto)
@@ -352,10 +352,15 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
         if (item == null)
             return (false, "Item não encontrado nesta OP");
 
-        if (dto.Quantidade <= 0)
-            return (false, "Quantidade deve ser maior que zero");
+        if (dto.Quantidade == 0)
+            return (false, "Quantidade não pode ser zero");
+
+        if (dto.Quantidade < 0 && string.IsNullOrWhiteSpace(dto.Observacao))
+            return (false, "Justificativa é obrigatória ao reduzir quantidade produzida");
 
         var nova = item.QuantidadeProduzida + dto.Quantidade;
+        if (nova < 0)
+            return (false, "Quantidade produzida não pode ficar negativa");
         if (nova > item.QuantidadePlanejada)
             return (false, $"Quantidade ultrapassa o planejado ({item.QuantidadePlanejada})");
 
@@ -363,8 +368,9 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
         item.ModificadoEm = DateTime.UtcNow;
 
         var produto = await _context.Produtos.FindAsync(item.ProdutoId);
-        var detalhe = $"{produto?.Codigo ?? "?"} +{dto.Quantidade} (total {nova}/{item.QuantidadePlanejada})";
-        RegistrarEvento(opId, EventoOrdemProducao.Apontamento, null, null, dto.Observacao, detalhe);
+        var sinal = dto.Quantidade >= 0 ? "+" : "";
+        var detalhe = $"{produto?.Codigo ?? "?"} {sinal}{dto.Quantidade} (total {nova}/{item.QuantidadePlanejada})";
+        RegistrarEvento(opId, EventoOrdemProducao.Apontamento, null, null, dto.Observacao, detalhe, itemId);
 
         await _context.SaveChangesAsync();
 
@@ -462,7 +468,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
                     Observacao = qtdBom == 0
                         ? "Item removido da BOM"
                         : qtdBom > item.QuantidadePlanejada
-                            ? "BOM aumentou — considerar OP complementar"
+                            ? "BOM aumentou - considerar OP complementar"
                             : "BOM diminuiu"
                 });
             }
@@ -477,15 +483,22 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
         };
     }
 
-    public async Task<List<OrdemProducaoHistoricoResponseDTO>> GetHistorico(int opId)
+    public async Task<List<OrdemProducaoHistoricoResponseDTO>> GetHistorico(int opId, int? itemId = null)
     {
-        return await _context.OrdensProducaoHistorico
-            .Where(h => h.OrdemProducaoId == opId)
+        var query = _context.OrdensProducaoHistorico
+            .Where(h => h.OrdemProducaoId == opId);
+
+        // Filtro por item: traz eventos de OP (sem item) + apontamentos do item informado.
+        if (itemId.HasValue)
+            query = query.Where(h => h.OrdemProducaoItemId == null || h.OrdemProducaoItemId == itemId);
+
+        return await query
             .OrderByDescending(h => h.DataHora)
             .Select(h => new OrdemProducaoHistoricoResponseDTO
             {
                 Id = h.Id,
                 OrdemProducaoId = h.OrdemProducaoId,
+                OrdemProducaoItemId = h.OrdemProducaoItemId,
                 Evento = h.Evento,
                 StatusAnterior = h.StatusAnterior,
                 StatusNovo = h.StatusNovo,
@@ -639,9 +652,9 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
     private static (bool Valida, string? Erro) TransicaoPermitida(StatusOrdemProducao atual, StatusOrdemProducao novo)
     {
         if (atual == StatusOrdemProducao.Concluida)
-            return (false, "OP Concluida é terminal — não aceita nova transição");
+            return (false, "OP Concluida é terminal - não aceita nova transição");
         if (atual == StatusOrdemProducao.Cancelada)
-            return (false, "OP Cancelada é terminal — não aceita nova transição");
+            return (false, "OP Cancelada é terminal - não aceita nova transição");
 
         return (atual, novo) switch
         {
@@ -709,11 +722,13 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
         StatusOrdemProducao? anterior,
         StatusOrdemProducao? novo,
         string? justificativa,
-        string? detalhe)
+        string? detalhe,
+        int? itemId = null)
     {
         _context.OrdensProducaoHistorico.Add(new OrdemProducaoHistorico
         {
             OrdemProducaoId = opId,
+            OrdemProducaoItemId = itemId,
             Evento = evento,
             StatusAnterior = anterior,
             StatusNovo = novo,

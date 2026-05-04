@@ -6,7 +6,7 @@ using Api_ArjSys_Tcc.DTOs.Admin;
 namespace Api_ArjSys_Tcc.Services.Admin;
 
 /// <summary>
-/// Serviço da Configuração da Empresa (singleton — Id = 1).
+/// Serviço da Configuração da Empresa (singleton - Id = 1).
 ///
 /// Usado por:
 /// - Front (GET/PUT pra exibir e editar AnoFundacao)
@@ -17,7 +17,7 @@ namespace Api_ArjSys_Tcc.Services.Admin;
 /// - Update normal: permitido apenas até existir o primeiro NS no banco.
 ///   Após isso, retorna 400 e exige uso do admin-override.
 /// - UpdateAdmin: permite alterar sempre. Reservado pra role Admin (autenticação
-///   ainda não implementada — endpoint fica aberto por enquanto).
+///   ainda não implementada - endpoint fica aberto por enquanto).
 /// - NS já gerados NUNCA são reescritos quando AnoFundacao muda.
 /// </summary>
 public class ConfiguracaoEmpresaService(AppDbContext context)
@@ -76,7 +76,7 @@ public class ConfiguracaoEmpresaService(AppDbContext context)
     /// Update admin-override: usado por role Admin (autenticação ainda não implementada).
     /// - Valida faixa do ano.
     /// - Permite alterar mesmo após NS existir.
-    /// - NS já emitidos NÃO são reescritos — ficam com o código original.
+    /// - NS já emitidos NÃO são reescritos - ficam com o código original.
     /// </summary>
     public async Task<(bool Sucesso, string? Erro)> UpdateAdmin(ConfiguracaoEmpresaUpdateDTO dto)
     {

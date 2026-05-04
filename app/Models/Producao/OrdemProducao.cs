@@ -24,11 +24,11 @@ public class OrdemProducao : BaseEntity
     /// <summary>Código único da OP (formato OP.AAAA.MM.NNNN ou OP.AAAA.MM.NNNN/NNNN)</summary>
     public string Codigo { get; set; } = string.Empty;
 
-    /// <summary>FK para o Pedido de Venda — opcional. null = OP independente (estoque).</summary>
+    /// <summary>FK para o Pedido de Venda - opcional. null = OP independente (estoque).</summary>
     public int? PedidoVendaId { get; set; }
     public PedidoVenda? PedidoVenda { get; set; }
 
-    /// <summary>FK para o Produto — Master: raiz da BOM; Filha: produto específico da estrutura</summary>
+    /// <summary>FK para o Produto - Master: raiz da BOM; Filha: produto específico da estrutura</summary>
     public int ProdutoId { get; set; }
     public Produto Produto { get; set; } = null!;
 

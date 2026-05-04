@@ -135,7 +135,7 @@ public class BomController(BomService service) : ControllerBase
     }
 
     /// <summary>
-    /// Deletar estrutura completa — remove todos os filhos diretos do produto pai
+    /// Deletar estrutura completa - remove todos os filhos diretos do produto pai
     /// </summary>
     [HttpDelete("estrutura/{produtoPaiId:int}")]
     public async Task<IActionResult> DeleteEstrutura(int produtoPaiId)

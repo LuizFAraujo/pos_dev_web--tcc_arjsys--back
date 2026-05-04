@@ -2,11 +2,11 @@ using Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 namespace Api_ArjSys_Tcc.DTOs.Comercial;
 
-// Classe âncora — evita rename automático do VS Code
+// Classe âncora - evita rename automático do VS Code
 public partial class NumeroSerieDTO { }
 
 /// <summary>
-/// Entrada — criar Número de Série.
+/// Entrada - criar Número de Série.
 /// Vinculação 1:1 com PV (rejeita se o PV já tiver NS).
 /// Só pode criar NS para PV tipo PreVenda em status AguardandoNS.
 /// ProdutoId é opcional (Engenharia pode preencher depois via Update).
@@ -21,18 +21,18 @@ public class NumeroSerieCreateDTO
     /// <summary>FK para o Pedido de Venda (1:1)</summary>
     public int PedidoVendaId { get; set; }
 
-    /// <summary>FK para o Produto BOM (projeto) — opcional</summary>
+    /// <summary>FK para o Produto BOM (projeto) - opcional</summary>
     public int? ProdutoId { get; set; }
 
     /// <summary>
-    /// Código manual no formato II.MM.AA.NNNNN — opcional.
+    /// Código manual no formato II.MM.AA.NNNNN - opcional.
     /// Se null/vazio, o backend gera automaticamente.
     /// </summary>
     public string? Codigo { get; set; }
 }
 
 /// <summary>
-/// Entrada — editar Número de Série.
+/// Entrada - editar Número de Série.
 /// Engenharia edita apenas o Produto vinculado. Dados do PV são readonly.
 /// Codigo NUNCA é editável (não tem campo no DTO).
 /// </summary>
@@ -43,7 +43,7 @@ public class NumeroSerieUpdateDTO
 }
 
 /// <summary>
-/// Saída — retorno dos endpoints de NS.
+/// Saída - retorno dos endpoints de NS.
 /// Inclui dados readonly do PV vinculado (tipo, status, data entrega, cliente)
 /// e do Produto BOM (código, descrição).
 /// </summary>

@@ -1,10 +1,10 @@
 namespace Api_ArjSys_Tcc.DTOs.Comercial;
 
-// Classe âncora — evita rename automático do VS Code
+// Classe âncora - evita rename automático do VS Code
 public partial class PedidoVendaItemDTO { }
 
 /// <summary>
-/// Entrada — criar/editar item do PV.
+/// Entrada - criar/editar item do PV.
 /// Item é descrição livre, sem vínculo com Produto cadastrado.
 /// Justificativa é obrigatória quando o PV está em status avançado
 /// (Andamento, Concluido, AEntregar, Pausado).
@@ -28,7 +28,7 @@ public class PedidoVendaItemCreateDTO
 }
 
 /// <summary>
-/// Entrada — usado no PUT consolidado do PV.
+/// Entrada - usado no PUT consolidado do PV.
 /// Id preenchido = atualiza item existente; Id null/0 = cria novo.
 /// Itens no banco que não estão nesta lista são deletados.
 /// </summary>
@@ -48,7 +48,7 @@ public class PedidoVendaItemUpsertDTO
 }
 
 /// <summary>
-/// Saída — retorno dos endpoints de itens.
+/// Saída - retorno dos endpoints de itens.
 /// </summary>
 public class PedidoVendaItemResponseDTO
 {

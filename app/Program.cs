@@ -45,7 +45,7 @@ builder.Services.AddCors(options =>
 
 
 
-// Services — registro dos serviços de negócio (injeção de dependência)
+// Services - registro dos serviços de negócio (injeção de dependência)
 
 // Engenharia
 builder.Services.AddScoped<ProdutoService>();
@@ -73,6 +73,7 @@ builder.Services.AddScoped<NumeroSerieService>();
 
 // Produção
 builder.Services.AddScoped<OrdemProducaoService>();
+builder.Services.AddScoped<DemandaService>();
 
 
 

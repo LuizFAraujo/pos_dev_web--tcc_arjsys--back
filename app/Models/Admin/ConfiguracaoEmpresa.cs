@@ -1,7 +1,7 @@
 namespace Api_ArjSys_Tcc.Models.Admin;
 
 /// <summary>
-/// Configurações gerais da empresa. Singleton — sempre 1 registro com Id = 1.
+/// Configurações gerais da empresa. Singleton - sempre 1 registro com Id = 1.
 ///
 /// Por enquanto guarda:
 ///   - AnoFundacao: usado pra calcular a "idade" no código de NS (II.MM.AA.NNNNN).

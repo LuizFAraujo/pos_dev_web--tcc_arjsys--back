@@ -1,7 +1,7 @@
 ﻿namespace Api_ArjSys_Tcc.Models.Engenharia;
 
 /// <summary>
-/// Estrutura de produto (BOM — Bill of Materials).
+/// Estrutura de produto (BOM - Bill of Materials).
 /// Relacionamento pai-filho entre produtos com quantidade e posição.
 /// </summary>
 public class EstruturaProduto : BaseEntity

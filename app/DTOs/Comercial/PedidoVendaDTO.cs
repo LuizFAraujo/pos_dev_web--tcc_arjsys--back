@@ -2,13 +2,13 @@ using Api_ArjSys_Tcc.Models.Comercial.Enums;
 
 namespace Api_ArjSys_Tcc.DTOs.Comercial;
 
-// Classe âncora — evita rename automático do VS Code
+// Classe âncora - evita rename automático do VS Code
 public partial class PedidoVendaDTO { }
 
 /// <summary>
-/// Entrada — criar Pedido de Venda com itens em chamada única (atômica).
+/// Entrada - criar Pedido de Venda com itens em chamada única (atômica).
 /// Tipo obrigatório: Normal (status inicial Liberado) ou PreVenda (status inicial AguardandoNS).
-/// Data da venda opcional — default DateTime.UtcNow.
+/// Data da venda opcional - default DateTime.UtcNow.
 /// Lista de itens: OBRIGATÓRIA ter pelo menos 1.
 /// </summary>
 public class PedidoVendaCreateDTO
@@ -36,7 +36,7 @@ public class PedidoVendaCreateDTO
 }
 
 /// <summary>
-/// Entrada — atualizar PV + itens em chamada única com diff sincronizado.
+/// Entrada - atualizar PV + itens em chamada única com diff sincronizado.
 /// Itens com Id são atualizados; sem Id são criados; ausentes da lista são deletados.
 /// Em status avançado (Andamento/Concluido/AEntregar/Pausado) justificativa é obrigatória.
 /// Dispara evento ItensAlterados no histórico e notifica Engenharia/Produção/Almoxarifado.
@@ -73,7 +73,7 @@ public class PedidoVendaUpdateDTO
 }
 
 /// <summary>
-/// Saída — retorno dos endpoints do PV.
+/// Saída - retorno dos endpoints do PV.
 /// </summary>
 public class PedidoVendaResponseDTO
 {
@@ -103,7 +103,7 @@ public class PedidoVendaResponseDTO
 }
 
 /// <summary>
-/// Entrada — liberação de Projeto (Produto BOM) num Pedido de Venda pela Engenharia.
+/// Entrada - liberação de Projeto (Produto BOM) num Pedido de Venda pela Engenharia.
 /// ProdutoBomId null limpa a liberação.
 /// </summary>
 public class DefinirProjetoDTO
@@ -112,7 +112,7 @@ public class DefinirProjetoDTO
 }
 
 /// <summary>
-/// Entrada — alterar status do PV.
+/// Entrada - alterar status do PV.
 /// Justificativa é obrigatória em Pausar, Cancelar, Reabrir, Devolver e retroceder.
 /// </summary>
 public class StatusPedidoVendaDTO

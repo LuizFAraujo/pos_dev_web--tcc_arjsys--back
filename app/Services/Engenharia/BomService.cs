@@ -6,7 +6,7 @@ using Api_ArjSys_Tcc.DTOs.Engenharia;
 namespace Api_ArjSys_Tcc.Services.Engenharia;
 
 /// <summary>
-/// Serviço de BOM (Bill of Materials) — estrutura de produtos pai-filho.
+/// Serviço de BOM (Bill of Materials) - estrutura de produtos pai-filho.
 /// Gerencia relações entre produtos com validação de ciclo recursivo e posição automática.
 /// Fornece também a "explosão" da BOM: todos os itens folha consolidados com quantidades totais.
 /// </summary>
@@ -321,7 +321,7 @@ public class BomService(AppDbContext context)
     /// <summary>
     /// Desce recursivamente pela estrutura.
     /// Itens folha (sem filhos) são acumulados no consolidado.
-    /// Itens intermediários (com filhos) só têm sua estrutura descida — não aparecem no resultado.
+    /// Itens intermediários (com filhos) só têm sua estrutura descida - não aparecem no resultado.
     /// </summary>
     private static void ExplodirRecursivo(
         int produtoId,

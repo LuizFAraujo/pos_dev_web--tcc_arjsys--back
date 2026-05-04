@@ -12,6 +12,10 @@ public class OrdemProducaoHistorico : BaseEntity
     public int OrdemProducaoId { get; set; }
     public OrdemProducao OrdemProducao { get; set; } = null!;
 
+    /// <summary>FK opcional para o item da OP - preenchido em Apontamento.</summary>
+    public int? OrdemProducaoItemId { get; set; }
+    public OrdemProducaoItem? OrdemProducaoItem { get; set; }
+
     /// <summary>Tipo do evento</summary>
     public EventoOrdemProducao Evento { get; set; }
 

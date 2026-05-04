@@ -24,7 +24,7 @@ public class ConfiguracaoEmpresaController(ConfiguracaoEmpresaService service) :
 
     /// <summary>
     /// Atualiza o AnoFundacao (uso comum).
-    /// Bloqueia se já houver NS emitido — nesse caso, exige uso do endpoint admin-override.
+    /// Bloqueia se já houver NS emitido - nesse caso, exige uso do endpoint admin-override.
     /// Marca Configurado = true (libera emissão de NS).
     /// </summary>
     [HttpPut]
@@ -40,7 +40,7 @@ public class ConfiguracaoEmpresaController(ConfiguracaoEmpresaService service) :
 
     /// <summary>
     /// Atualiza o AnoFundacao mesmo que já existam NS no banco (admin-override).
-    /// NS já gerados NÃO são reescritos — ficam com o código original.
+    /// NS já gerados NÃO são reescritos - ficam com o código original.
     /// Reservado pra role Admin. Autenticação ainda não implementada.
     /// </summary>
     // TODO: ativar quando implementar autenticação/roles

@@ -6,7 +6,7 @@ public class Pessoa : BaseEntity
 {
     /// <summary>
     /// Código humano único por pessoa, prefixo por tipo (CLI-0001, FUN-0001, FOR-0001).
-    /// Gerado automaticamente pelo back — não aceito no payload de criação.
+    /// Gerado automaticamente pelo back - não aceito no payload de criação.
     /// </summary>
     public string Codigo { get; set; } = string.Empty;
 
