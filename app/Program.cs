@@ -5,6 +5,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Api_ArjSys_Tcc.Configurations;
+using Api_ArjSys_Tcc.Configurations.Sqlite;
 using Api_ArjSys_Tcc.Data;
 
 using Api_ArjSys_Tcc.Services.Engenharia;
@@ -30,8 +31,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddOpenApiConfig();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddSqliteConfig(builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddCors(options =>
 {
