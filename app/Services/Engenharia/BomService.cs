@@ -246,6 +246,8 @@ public class BomService(AppDbContext context)
             ProdutoFilhoCodigo = e.ProdutoFilho.Codigo,
             ProdutoFilhoDescricao = e.ProdutoFilho.Descricao,
             ProdutoFilhoUnidade = e.ProdutoFilho.Unidade,
+            ProdutoFilhoTipo = e.ProdutoFilho.Tipo,
+            ProdutoFilhoTemDocumento = e.ProdutoFilho.TemDocumento,
             Quantidade = e.Quantidade,
             Posicao = e.Posicao,
             Observacao = e.Observacao

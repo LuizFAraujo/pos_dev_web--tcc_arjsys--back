@@ -38,6 +38,8 @@ public class EstruturaProdutoFlatDTO
     public string ProdutoFilhoCodigo { get; set; } = string.Empty;
     public string ProdutoFilhoDescricao { get; set; } = string.Empty;
     public UnidadeMedida ProdutoFilhoUnidade { get; set; }
+    public TipoProduto ProdutoFilhoTipo { get; set; }
+    public bool ProdutoFilhoTemDocumento { get; set; }
     public decimal Quantidade { get; set; }
     public int Posicao { get; set; }
     public string? Observacao { get; set; }
