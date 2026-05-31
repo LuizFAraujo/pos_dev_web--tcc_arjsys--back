@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Admin;
 using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.DTOs.Admin;
@@ -33,6 +35,45 @@ public class FuncionarioService(AppDbContext context)
             .OrderBy(f => f.Pessoa.Nome)
             .Select(f => ToResponseDTO(f))
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Busca paginada de funcionários com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<FuncionarioResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Pessoa.Codigo",
+            ["nome"] = "Pessoa.Nome",
+            ["cpfCnpj"] = "Pessoa.CpfCnpj",
+            ["telefone"] = "Pessoa.Telefone",
+            ["email"] = "Pessoa.Email",
+            ["cidade"] = "Pessoa.Cidade",
+            ["estado"] = "Pessoa.Estado",
+            ["cargo"] = "Cargo",
+            ["setor"] = "Setor",
+            ["usuario"] = "Usuario",
+            ["ativo"] = "Pessoa.Ativo",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.Funcionarios.Include(f => f.Pessoa).AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["nome", "codigo", "usuario", "cargo"]);
+
+        return new PaginadoResponse<FuncionarioResponseDTO>
+        {
+            Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     public async Task<FuncionarioResponseDTO?> GetById(int id)

@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Engenharia;
 using Api_ArjSys_Tcc.Helpers;
 
@@ -18,6 +19,16 @@ public class ProdutosController(ProdutoService service) : ControllerBase
     public async Task<ActionResult<List<ProdutoResponseDTO>>> GetAll()
     {
         return await _service.GetAll();
+    }
+
+    /// <summary>
+    /// Busca paginada de produtos com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<ProdutoResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 
     /// <summary>Buscar produto por ID</summary>

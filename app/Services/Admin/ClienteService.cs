@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Admin;
 using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.DTOs.Admin;
@@ -31,6 +33,45 @@ public class ClienteService(AppDbContext context)
             .OrderBy(c => c.Pessoa.Nome)
             .Select(c => ToResponseDTO(c))
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Busca paginada de clientes com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<ClienteResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Pessoa.Codigo",
+            ["nome"] = "Pessoa.Nome",
+            ["cpfCnpj"] = "Pessoa.CpfCnpj",
+            ["telefone"] = "Pessoa.Telefone",
+            ["email"] = "Pessoa.Email",
+            ["cidade"] = "Pessoa.Cidade",
+            ["estado"] = "Pessoa.Estado",
+            ["razaoSocial"] = "RazaoSocial",
+            ["inscricaoEstadual"] = "InscricaoEstadual",
+            ["contatoComercial"] = "ContatoComercial",
+            ["ativo"] = "Pessoa.Ativo",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.Clientes.Include(c => c.Pessoa).AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["nome", "codigo", "cpfCnpj", "cidade"]);
+
+        return new PaginadoResponse<ClienteResponseDTO>
+        {
+            Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     public async Task<ClienteResponseDTO?> GetById(int id)

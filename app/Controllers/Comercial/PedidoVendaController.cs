@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Comercial;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Comercial;
 
 namespace Api_ArjSys_Tcc.Controllers.Comercial;
@@ -18,6 +19,16 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     public async Task<ActionResult<List<PedidoVendaResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)
     {
         return await _service.GetAll(pagina, tamanho);
+    }
+
+    /// <summary>
+    /// Busca paginada de PVs com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<PedidoVendaResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 
@@ -47,6 +49,48 @@ public class BomService(AppDbContext context)
             .ToListAsync();
 
         return (itens, total);
+    }
+
+    /// <summary>
+    /// Busca paginada de produtos com estrutura (pais), com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<ProdutoResponseDTO>> BuscarProdutosComEstrutura(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Codigo",
+            ["descricao"] = "Descricao",
+            ["descricaoCompleta"] = "DescricaoCompleta",
+            ["unidade"] = "Unidade",
+            ["tipo"] = "Tipo",
+            ["peso"] = "Peso",
+            ["ativo"] = "Ativo",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.Produtos
+            .Where(p => _context.EstruturasProdutos.Any(e => e.ProdutoPaiId == p.Id));
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            projecao: p => new ProdutoResponseDTO
+            {
+                Id = p.Id,
+                Codigo = p.Codigo,
+                Descricao = p.Descricao,
+                DescricaoCompleta = p.DescricaoCompleta,
+                Unidade = p.Unidade,
+                Tipo = p.Tipo,
+                Peso = p.Peso,
+                Ativo = p.Ativo,
+                CriadoEm = p.CriadoEm,
+                ModificadoEm = p.ModificadoEm
+            },
+            colunasBuscaGlobal: ["codigo", "descricao", "descricaoCompleta"]);
+
+        return paginado;
     }
 
     /// <summary>
@@ -259,6 +303,56 @@ public class BomService(AppDbContext context)
         var itens = await itensQuery.ToListAsync();
 
         return (itens, total);
+    }
+
+    /// <summary>
+    /// Busca paginada da BOM flat com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<EstruturaProdutoFlatDTO>> BuscarFlat(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["produtoPaiId"] = "ProdutoPaiId",
+            ["produtoPaiCodigo"] = "ProdutoPai.Codigo",
+            ["produtoPaiDescricao"] = "ProdutoPai.Descricao",
+            ["produtoFilhoId"] = "ProdutoFilhoId",
+            ["produtoFilhoCodigo"] = "ProdutoFilho.Codigo",
+            ["produtoFilhoDescricao"] = "ProdutoFilho.Descricao",
+            ["produtoFilhoUnidade"] = "ProdutoFilho.Unidade",
+            ["produtoFilhoTipo"] = "ProdutoFilho.Tipo",
+            ["produtoFilhoTemDocumento"] = "ProdutoFilho.TemDocumento",
+            ["quantidade"] = "Quantidade",
+            ["posicao"] = "Posicao",
+            ["observacao"] = "Observacao"
+        };
+
+        var query = _context.EstruturasProdutos
+            .Include(e => e.ProdutoPai)
+            .Include(e => e.ProdutoFilho)
+            .AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            projecao: e => new EstruturaProdutoFlatDTO
+            {
+                Id = e.Id,
+                ProdutoPaiId = e.ProdutoPaiId,
+                ProdutoPaiCodigo = e.ProdutoPai.Codigo,
+                ProdutoPaiDescricao = e.ProdutoPai.Descricao,
+                ProdutoFilhoId = e.ProdutoFilhoId,
+                ProdutoFilhoCodigo = e.ProdutoFilho.Codigo,
+                ProdutoFilhoDescricao = e.ProdutoFilho.Descricao,
+                ProdutoFilhoUnidade = e.ProdutoFilho.Unidade,
+                ProdutoFilhoTipo = e.ProdutoFilho.Tipo,
+                ProdutoFilhoTemDocumento = e.ProdutoFilho.TemDocumento,
+                Quantidade = e.Quantidade,
+                Posicao = e.Posicao,
+                Observacao = e.Observacao
+            },
+            colunasBuscaGlobal: ["produtoPaiCodigo", "produtoPaiDescricao", "produtoFilhoCodigo", "produtoFilhoDescricao"]);
+
+        return paginado;
     }
 
     /// <summary>

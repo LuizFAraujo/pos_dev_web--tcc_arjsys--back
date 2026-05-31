@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Admin;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Admin;
 
 namespace Api_ArjSys_Tcc.Controllers.Admin;
@@ -18,6 +19,16 @@ public class ClientesController(ClienteService service) : ControllerBase
     public async Task<ActionResult<List<ClienteResponseDTO>>> GetAll([FromQuery] string? busca = null)
     {
         return await _service.GetAll(busca);
+    }
+
+    /// <summary>
+    /// Busca paginada de clientes com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<ClienteResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 
     [HttpGet("{id:int}")]

@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.Models.Engenharia.Enums;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
@@ -17,6 +19,43 @@ public class ProdutoService(AppDbContext context)
             .OrderBy(p => p.Codigo)
             .Select(p => ToResponseDTO(p))
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Busca paginada de produtos com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<ProdutoResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Codigo",
+            ["descricao"] = "Descricao",
+            ["descricaoCompleta"] = "DescricaoCompleta",
+            ["unidade"] = "Unidade",
+            ["tipo"] = "Tipo",
+            ["peso"] = "Peso",
+            ["ativo"] = "Ativo",
+            ["temPasta"] = "TemPasta",
+            ["temDocumento"] = "TemDocumento",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.Produtos.AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["codigo", "descricao", "descricaoCompleta"]);
+
+        return new PaginadoResponse<ProdutoResponseDTO>
+        {
+            Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     public async Task<ProdutoResponseDTO?> GetById(int id)

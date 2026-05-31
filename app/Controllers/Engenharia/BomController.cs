@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Engenharia;
 
 namespace Api_ArjSys_Tcc.Controllers.Engenharia;
@@ -29,6 +30,16 @@ public class BomController(BomService service) : ControllerBase
             tamanho,
             totalPaginas = tamanho > 0 ? (int)Math.Ceiling((double)total / tamanho) : 1
         });
+    }
+
+    /// <summary>
+    /// Busca paginada de produtos com estrutura (pais) com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<ProdutoResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.BuscarProdutosComEstrutura(req);
+        return Ok(resposta);
     }
 
     /// <summary>
@@ -132,6 +143,16 @@ public class BomController(BomService service) : ControllerBase
             tamanho,
             totalPaginas = tamanho > 0 ? (int)Math.Ceiling((double)total / tamanho) : 1
         });
+    }
+
+    /// <summary>
+    /// Busca paginada da BOM flat com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("flat/buscar")]
+    public async Task<ActionResult<PaginadoResponse<EstruturaProdutoFlatDTO>>> BuscarFlat([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.BuscarFlat(req);
+        return Ok(resposta);
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Producao;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Producao;
 
 namespace Api_ArjSys_Tcc.Controllers.Producao;
@@ -18,6 +19,16 @@ public class OrdemProducaoController(OrdemProducaoService service) : ControllerB
     public async Task<ActionResult<List<OrdemProducaoResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)
     {
         return await _service.GetAll(pagina, tamanho);
+    }
+
+    /// <summary>
+    /// Busca paginada de OPs com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<OrdemProducaoResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 
     /// <summary>

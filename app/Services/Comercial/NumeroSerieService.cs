@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Comercial;
 using Api_ArjSys_Tcc.Models.Comercial.Enums;
 using Api_ArjSys_Tcc.DTOs.Comercial;
@@ -59,6 +61,49 @@ public class NumeroSerieService(
             lista = await query.ToListAsync();
 
         return lista.Select(ToResponseDTO).ToList();
+    }
+
+    /// <summary>
+    /// Busca paginada de NS com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<NumeroSerieResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Codigo",
+            ["pedidoVendaId"] = "PedidoVendaId",
+            ["produtoId"] = "ProdutoId",
+            ["produtoCodigo"] = "Produto.Codigo",
+            ["produtoDescricao"] = "Produto.Descricao",
+            ["pedidoTipo"] = "PedidoVenda.Tipo",
+            ["pedidoStatus"] = "PedidoVenda.Status",
+            ["pedidoData"] = "PedidoVenda.Data",
+            ["clienteNome"] = "PedidoVenda.Cliente.Pessoa.Nome",
+            ["clienteCodigo"] = "PedidoVenda.Cliente.Pessoa.Codigo",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.NumerosSerie
+            .Include(n => n.PedidoVenda)
+                .ThenInclude(p => p.Cliente)
+                    .ThenInclude(c => c.Pessoa)
+            .Include(n => n.Produto)
+            .AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["codigo", "produtoCodigo", "produtoDescricao", "clienteNome"]);
+
+        return new PaginadoResponse<NumeroSerieResponseDTO>
+        {
+            Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     /// <summary>

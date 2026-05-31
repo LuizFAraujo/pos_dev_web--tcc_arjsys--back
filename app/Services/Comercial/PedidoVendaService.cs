@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.Models.Comercial;
 using Api_ArjSys_Tcc.Models.Comercial.Enums;
@@ -63,6 +65,59 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         }
 
         return resultado;
+    }
+
+    /// <summary>
+    /// Busca paginada de PVs com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<PedidoVendaResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Codigo",
+            ["data"] = "Data",
+            ["tipo"] = "Tipo",
+            ["status"] = "Status",
+            ["observacao"] = "Observacao",
+            ["clienteId"] = "ClienteId",
+            ["clienteNome"] = "Cliente.Pessoa.Nome",
+            ["clienteCodigo"] = "Cliente.Pessoa.Codigo",
+            ["produtoBomId"] = "ProdutoBomId",
+            ["produtoBomCodigo"] = "ProdutoBom.Codigo",
+            ["produtoBomDescricao"] = "ProdutoBom.Descricao",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.PedidosVenda
+            .Include(p => p.Cliente)
+                .ThenInclude(c => c.Pessoa)
+            .Include(p => p.ProdutoBom)
+            .AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["codigo", "clienteNome", "produtoBomCodigo", "produtoBomDescricao"]);
+
+        var resultado = new List<PedidoVendaResponseDTO>();
+        foreach (var p in paginado.Itens)
+        {
+            var itens = await _context.PedidosVendaItens
+                .Where(i => i.PedidoVendaId == p.Id)
+                .OrderBy(i => i.Id)
+                .ToListAsync();
+            resultado.Add(ToResponseDTO(p, itens));
+        }
+
+        return new PaginadoResponse<PedidoVendaResponseDTO>
+        {
+            Itens = resultado,
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     public async Task<PedidoVendaResponseDTO?> GetById(int id)

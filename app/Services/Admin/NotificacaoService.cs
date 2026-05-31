@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Admin;
 using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.DTOs.Admin;
@@ -40,6 +42,42 @@ public class NotificacaoService(AppDbContext context)
             lista = await ordenada.ToListAsync();
 
         return lista.Select(ToResponseDTO).ToList();
+    }
+
+    /// <summary>
+    /// Busca paginada de notificações com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<NotificacaoResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["moduloDestino"] = "ModuloDestino",
+            ["tipo"] = "Tipo",
+            ["titulo"] = "Titulo",
+            ["mensagem"] = "Mensagem",
+            ["lida"] = "Lida",
+            ["dataLeitura"] = "DataLeitura",
+            ["origemTabela"] = "OrigemTabela",
+            ["origemId"] = "OrigemId",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.Notificacoes.AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["titulo", "mensagem"]);
+
+        return new PaginadoResponse<NotificacaoResponseDTO>
+        {
+            Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     /// <summary>

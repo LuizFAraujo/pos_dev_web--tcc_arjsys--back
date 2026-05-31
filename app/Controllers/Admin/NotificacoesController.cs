@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Admin;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.Services.Admin;
 
@@ -23,6 +24,16 @@ public class NotificacoesController(NotificacaoService service) : ControllerBase
         [FromQuery] int tamanho = 0)
     {
         return await _service.GetByModulo(modulo, lidas, pagina, tamanho);
+    }
+
+    /// <summary>
+    /// Busca paginada de notificações com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<NotificacaoResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 
     /// <summary>

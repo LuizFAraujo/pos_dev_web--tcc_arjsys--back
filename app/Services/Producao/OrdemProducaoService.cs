@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Admin.Enums;
 using Api_ArjSys_Tcc.Models.Comercial.Enums;
 using Api_ArjSys_Tcc.Models.Engenharia;
@@ -48,6 +50,56 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
             resultado.Add(await ToResponseDTO(op));
 
         return resultado;
+    }
+
+    /// <summary>
+    /// Busca paginada de OPs com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<OrdemProducaoResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Codigo",
+            ["tipo"] = "Tipo",
+            ["status"] = "Status",
+            ["quantidade"] = "Quantidade",
+            ["observacao"] = "Observacao",
+            ["pedidoVendaId"] = "PedidoVendaId",
+            ["pedidoVendaCodigo"] = "PedidoVenda.Codigo",
+            ["clienteNome"] = "PedidoVenda.Cliente.Pessoa.Nome",
+            ["clienteCodigo"] = "PedidoVenda.Cliente.Pessoa.Codigo",
+            ["produtoId"] = "ProdutoId",
+            ["produtoCodigo"] = "Produto.Codigo",
+            ["produtoDescricao"] = "Produto.Descricao",
+            ["ordemPaiId"] = "OrdemPaiId",
+            ["ordemPaiCodigo"] = "OrdemPai.Codigo",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.OrdensProducao
+            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
+            .Include(o => o.Produto)
+            .Include(o => o.OrdemPai)
+            .AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["codigo", "produtoCodigo", "produtoDescricao", "clienteNome", "pedidoVendaCodigo"]);
+
+        var resultado = new List<OrdemProducaoResponseDTO>();
+        foreach (var op in paginado.Itens)
+            resultado.Add(await ToResponseDTO(op));
+
+        return new PaginadoResponse<OrdemProducaoResponseDTO>
+        {
+            Itens = resultado,
+            Total = paginado.Total,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     public async Task<OrdemProducaoResponseDTO?> GetById(int id)
