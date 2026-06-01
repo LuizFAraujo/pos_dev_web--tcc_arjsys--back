@@ -100,6 +100,7 @@ public class NumeroSerieService(
         {
             Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
             Total = paginado.Total,
+            TotalGeral = paginado.TotalGeral,
             Pagina = paginado.Pagina,
             Tamanho = paginado.Tamanho,
             TotalPaginas = paginado.TotalPaginas

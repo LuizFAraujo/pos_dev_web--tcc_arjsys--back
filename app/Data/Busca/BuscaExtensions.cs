@@ -26,6 +26,9 @@ public static class BuscaExtensions
         string[]? colunasBuscaGlobal = null,
         CancellationToken cancellationToken = default)
     {
+        // Total geral (tabela inteira, sem filtros nem busca) — usado no rodapé
+        var totalGeral = await query.CountAsync(cancellationToken);
+
         query = AplicarFiltrosEBusca(query, req, mapaColunas, colunasBuscaGlobal);
 
         var total = await query.CountAsync(cancellationToken);
@@ -41,7 +44,7 @@ public static class BuscaExtensions
 
         var itens = await projetada.ToListAsync(cancellationToken);
 
-        return MontarResposta(itens, total, req);
+        return MontarResposta(itens, total, totalGeral, req);
     }
 
     /// <summary>
@@ -55,6 +58,8 @@ public static class BuscaExtensions
         string[]? colunasBuscaGlobal = null,
         CancellationToken cancellationToken = default)
     {
+        var totalGeral = await query.CountAsync(cancellationToken);
+
         query = AplicarFiltrosEBusca(query, req, mapaColunas, colunasBuscaGlobal);
 
         var total = await query.CountAsync(cancellationToken);
@@ -68,7 +73,7 @@ public static class BuscaExtensions
 
         var itens = await query.ToListAsync(cancellationToken);
 
-        return MontarResposta(itens, total, req);
+        return MontarResposta(itens, total, totalGeral, req);
     }
 
     // ============================================
@@ -85,18 +90,27 @@ public static class BuscaExtensions
             foreach (var filtro in req.Filtros)
                 query = AplicarFiltroColuna(query, filtro, mapaColunas);
 
-        if (!string.IsNullOrWhiteSpace(req.Busca)
-            && colunasBuscaGlobal != null && colunasBuscaGlobal.Length > 0)
-            query = AplicarBuscaGlobal(query, req.Busca, colunasBuscaGlobal, mapaColunas);
+        if (!string.IsNullOrWhiteSpace(req.Busca))
+        {
+            // Front pode sobrescrever as colunas via req.ColunasBusca; senao
+            // usa o default do service (colunasBuscaGlobal).
+            var colunas = (req.ColunasBusca != null && req.ColunasBusca.Count > 0)
+                ? req.ColunasBusca.ToArray()
+                : colunasBuscaGlobal;
+
+            if (colunas != null && colunas.Length > 0)
+                query = AplicarBuscaGlobal(query, req.Busca, colunas, mapaColunas);
+        }
 
         return query;
     }
 
-    private static PaginadoResponse<T> MontarResposta<T>(List<T> itens, int total, BuscaRequest req)
+    private static PaginadoResponse<T> MontarResposta<T>(List<T> itens, int total, int totalGeral, BuscaRequest req)
         => new()
         {
             Itens = itens,
             Total = total,
+            TotalGeral = totalGeral,
             Pagina = req.Pagina,
             Tamanho = req.Tamanho,
             TotalPaginas = req.Tamanho > 0
@@ -165,14 +179,28 @@ public static class BuscaExtensions
             if (!mapaColunas.TryGetValue(coluna, out var caminho)) continue;
 
             var prop = BuildAcessoPropriedade(param, caminho);
-            if (prop.Type != typeof(string)) continue;
 
-            var contemExpr = ConstruirChamadaString(prop, "Contains", termo);
-            if (contemExpr == null) continue;
+            Expression? colunaExpr = null;
+
+            if (prop.Type == typeof(string))
+            {
+                // String: EF.Functions.Like → LIKE → case-insensitive no SQLite
+                colunaExpr = ConstruirLike(prop, termo, curinga: "%{0}%");
+            }
+            else if (prop.Type.IsEnum)
+            {
+                // Enum: enumera membros cujo NOME contem o termo (case-insensitive)
+                // e gera OR de igualdades. EF traduz pra WHERE col IN (...) no SQL.
+                // Funciona porque o padrao do projeto eh HasConversion<string>() nos enums.
+                colunaExpr = ConstruirEnumContem(prop, termo);
+            }
+            // outros tipos: pula
+
+            if (colunaExpr == null) continue;
 
             expressaoFinal = expressaoFinal == null
-                ? contemExpr
-                : Expression.OrElse(expressaoFinal, contemExpr);
+                ? colunaExpr
+                : Expression.OrElse(expressaoFinal, colunaExpr);
         }
 
         if (expressaoFinal == null) return query;
@@ -235,38 +263,57 @@ public static class BuscaExtensions
         if (op == Operador.NaoEm) return ConstruirEmOuNaoEm(prop, v, negar: true);
         if (op == Operador.Entre) return ConstruirEntre(prop, v);
 
-        // Operadores de string
+        // Operadores de string — usam EF.Functions.Like (LIKE no SQL).
+        // No SQLite, LIKE é case-insensitive por default pra ASCII; em Postgres,
+        // futuramente trocar pra EF.Functions.ILike. Acento ainda nao normaliza.
         if (op == Operador.Contem)
-            return ConstruirChamadaString(prop, "Contains", ExtrairString(v));
+            return ConstruirLike(prop, ExtrairString(v), curinga: "%{0}%");
 
         if (op == Operador.NaoContem)
         {
-            var contains = ConstruirChamadaString(prop, "Contains", ExtrairString(v));
-            return contains == null ? null : Expression.Not(contains);
+            var like = ConstruirLike(prop, ExtrairString(v), curinga: "%{0}%");
+            return like == null ? null : Expression.Not(like);
         }
 
         if (op == Operador.ComecaCom)
-            return ConstruirChamadaString(prop, "StartsWith", ExtrairString(v));
+            return ConstruirLike(prop, ExtrairString(v), curinga: "{0}%");
 
         if (op == Operador.TerminaCom)
-            return ConstruirChamadaString(prop, "EndsWith", ExtrairString(v));
+            return ConstruirLike(prop, ExtrairString(v), curinga: "%{0}");
 
         // Operadores de comparação com valor único
         var convertido = ConverterJsonElement(v, prop.Type);
         if (convertido == null && !PermitirNull(prop.Type)) return null;
 
-        var constante = Expression.Constant(convertido, prop.Type);
+        // Em string: LOWER nos dois lados pra comparacao case-insensitive
+        // (dados gravados ficam intactos; so a comparacao normaliza)
+        var (propComp, valorComp) = NormalizarStringParaLower(prop, convertido);
+        var constante = Expression.Constant(valorComp, prop.Type);
 
         return op switch
         {
-            Operador.Igual => Expression.Equal(prop, constante),
-            Operador.Diferente => Expression.NotEqual(prop, constante),
-            Operador.MaiorQue => Expression.GreaterThan(prop, constante),
-            Operador.MenorQue => Expression.LessThan(prop, constante),
-            Operador.MaiorOuIgual => Expression.GreaterThanOrEqual(prop, constante),
-            Operador.MenorOuIgual => Expression.LessThanOrEqual(prop, constante),
+            Operador.Igual => Expression.Equal(propComp, constante),
+            Operador.Diferente => Expression.NotEqual(propComp, constante),
+            Operador.MaiorQue => Expression.GreaterThan(propComp, constante),
+            Operador.MenorQue => Expression.LessThan(propComp, constante),
+            Operador.MaiorOuIgual => Expression.GreaterThanOrEqual(propComp, constante),
+            Operador.MenorOuIgual => Expression.LessThanOrEqual(propComp, constante),
             _ => null
         };
+    }
+
+    /// <summary>
+    /// Para strings, aplica string.ToLower() na propriedade e converte o valor para lower.
+    /// Pra outros tipos, devolve sem mudanca. EF Core traduz ToLower() para LOWER(col) no SQL,
+    /// e funciona tanto no SQLite quanto no Postgres (futuro).
+    /// </summary>
+    private static (Expression Prop, object? Valor) NormalizarStringParaLower(Expression prop, object? valor)
+    {
+        if (prop.Type != typeof(string)) return (prop, valor);
+        var metodo = typeof(string).GetMethod("ToLower", Type.EmptyTypes)!;
+        var propLower = Expression.Call(prop, metodo);
+        var valorLower = valor is string s ? s.ToLowerInvariant() : valor;
+        return (propLower, valorLower);
     }
 
     private static Expression ComparacaoComNull(Expression prop, bool igual)
@@ -280,12 +327,67 @@ public static class BuscaExtensions
             : Expression.NotEqual(propNullable, nullConst);
     }
 
-    private static Expression? ConstruirChamadaString(Expression prop, string metodo, string? valor)
+    /// <summary>
+    /// Constroi expressao EF.Functions.Like(prop, pattern) onde pattern = prefixo + valor + sufixo.
+    /// O LIKE no SQLite é case-insensitive por padrao pra ASCII (não pra acentos).
+    /// Caracteres especiais de LIKE (% _) digitados pelo usuario funcionam como curinga
+    /// — aceitavel pra busca interativa de cadastros.
+    /// </summary>
+    private static Expression? ConstruirLike(Expression prop, string? valor, string curinga)
     {
         if (valor == null || prop.Type != typeof(string)) return null;
-        var info = typeof(string).GetMethod(metodo, new[] { typeof(string) });
-        if (info == null) return null;
-        return Expression.Call(prop, info, Expression.Constant(valor));
+
+        var (prefixo, sufixo) = ExtrairCuringa(curinga);
+        var pattern = prefixo + valor + sufixo;
+
+        var metodo = typeof(Microsoft.EntityFrameworkCore.DbFunctionsExtensions)
+            .GetMethod(
+                nameof(Microsoft.EntityFrameworkCore.DbFunctionsExtensions.Like),
+                new[]
+                {
+                    typeof(Microsoft.EntityFrameworkCore.DbFunctions),
+                    typeof(string),
+                    typeof(string),
+                });
+        if (metodo == null) return null;
+
+        var efFunctions = Expression.Constant(Microsoft.EntityFrameworkCore.EF.Functions);
+        return Expression.Call(metodo, efFunctions, prop, Expression.Constant(pattern));
+    }
+
+    private static (string Prefixo, string Sufixo) ExtrairCuringa(string padrao) => padrao switch
+    {
+        "%{0}%" => ("%", "%"),
+        "{0}%" => ("", "%"),
+        "%{0}" => ("%", ""),
+        _ => ("", ""),
+    };
+
+    /// <summary>
+    /// Para enum: enumera os membros cujo nome contem o termo (case-insensitive)
+    /// e gera (prop == M1 || prop == M2 || ...). EF Core traduz isso pra
+    /// "WHERE col IN ('M1','M2',...)" no SQL, funcionando independente de o enum
+    /// estar persistido como string ou int.
+    /// </summary>
+    private static Expression? ConstruirEnumContem(Expression prop, string termo)
+    {
+        if (!prop.Type.IsEnum) return null;
+
+        var termoLower = termo.ToLowerInvariant();
+        var matching = Enum.GetNames(prop.Type)
+            .Where(name => name.ToLowerInvariant().Contains(termoLower))
+            .Select(name => Enum.Parse(prop.Type, name))
+            .ToArray();
+
+        if (matching.Length == 0) return null;
+
+        Expression? cadeia = null;
+        foreach (var membro in matching)
+        {
+            var eq = Expression.Equal(prop, Expression.Constant(membro, prop.Type));
+            cadeia = cadeia == null ? eq : Expression.OrElse(cadeia, eq);
+        }
+        return cadeia;
     }
 
     private static Expression? ConstruirEntre(Expression prop, JsonElement valor)
@@ -296,9 +398,13 @@ public static class BuscaExtensions
         var max = ConverterJsonElement(valor[1], prop.Type);
         if (min == null || max == null) return null;
 
+        // Em string: LOWER nos dois lados pra range case-insensitive
+        var (propMin, minNorm) = NormalizarStringParaLower(prop, min);
+        var (propMax, maxNorm) = NormalizarStringParaLower(prop, max);
+
         return Expression.AndAlso(
-            Expression.GreaterThanOrEqual(prop, Expression.Constant(min, prop.Type)),
-            Expression.LessThanOrEqual(prop, Expression.Constant(max, prop.Type)));
+            Expression.GreaterThanOrEqual(propMin, Expression.Constant(minNorm, prop.Type)),
+            Expression.LessThanOrEqual(propMax, Expression.Constant(maxNorm, prop.Type)));
     }
 
     private static Expression? ConstruirEmOuNaoEm(Expression prop, JsonElement valor, bool negar)
@@ -307,11 +413,17 @@ public static class BuscaExtensions
 
         var tipoLista = typeof(List<>).MakeGenericType(prop.Type);
         var lista = (IList)Activator.CreateInstance(tipoLista)!;
+        var ehString = prop.Type == typeof(string);
 
         foreach (var item in valor.EnumerateArray())
         {
             var convertido = ConverterJsonElement(item, prop.Type);
-            if (convertido != null) lista.Add(convertido);
+            if (convertido == null) continue;
+            // Em string: normaliza itens pra lower antes de entrar na lista
+            if (ehString && convertido is string s)
+                lista.Add(s.ToLowerInvariant());
+            else
+                lista.Add(convertido);
         }
 
         if (lista.Count == 0) return null;
@@ -319,7 +431,15 @@ public static class BuscaExtensions
         var contains = tipoLista.GetMethod("Contains", new[] { prop.Type });
         if (contains == null) return null;
 
-        Expression call = Expression.Call(Expression.Constant(lista, tipoLista), contains, prop);
+        // Em string: comparar com prop.ToLower() pra fechar o ciclo case-insensitive
+        Expression propComp = prop;
+        if (ehString)
+        {
+            var toLower = typeof(string).GetMethod("ToLower", Type.EmptyTypes)!;
+            propComp = Expression.Call(prop, toLower);
+        }
+
+        Expression call = Expression.Call(Expression.Constant(lista, tipoLista), contains, propComp);
         return negar ? Expression.Not(call) : call;
     }
 

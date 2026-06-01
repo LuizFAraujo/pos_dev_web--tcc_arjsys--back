@@ -89,4 +89,11 @@ public class BuscaRequest
     public string? Busca { get; set; }
     public List<FiltroColuna>? Filtros { get; set; }
     public List<Ordenacao>? Ordenacoes { get; set; }
+
+    /// <summary>
+    /// Colunas onde aplicar a busca textual (Busca). Quando vazio/null,
+    /// usa o default definido pelo service (colunasBuscaGlobal). Quando vier,
+    /// substitui o default permitindo o front escolher onde pesquisar.
+    /// </summary>
+    public List<string>? ColunasBusca { get; set; }
 }

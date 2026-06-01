@@ -96,6 +96,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
         {
             Itens = resultado,
             Total = paginado.Total,
+            TotalGeral = paginado.TotalGeral,
             Pagina = paginado.Pagina,
             Tamanho = paginado.Tamanho,
             TotalPaginas = paginado.TotalPaginas

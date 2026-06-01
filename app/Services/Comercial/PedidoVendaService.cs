@@ -114,6 +114,7 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
         {
             Itens = resultado,
             Total = paginado.Total,
+            TotalGeral = paginado.TotalGeral,
             Pagina = paginado.Pagina,
             Tamanho = paginado.Tamanho,
             TotalPaginas = paginado.TotalPaginas
