@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
 using Api_ArjSys_Tcc.DTOs.Producao;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Engenharia.Enums;
+using Api_ArjSys_Tcc.Models.Producao;
 using Api_ArjSys_Tcc.Models.Producao.Enums;
 
 namespace Api_ArjSys_Tcc.Services.Producao;
@@ -70,5 +73,75 @@ public class DemandaService(AppDbContext context)
             .OrderBy(d => d.OrdemProducaoCodigo)
             .ThenBy(d => d.ProdutoCodigo)
             .ToList();
+    }
+
+    /// <summary>
+    /// Busca paginada de demanda com filtros, ordenação e busca textual server-side.
+    /// Filtros base aplicados sempre: OPs ativas (Pendente/Andamento/Pausada) e
+    /// faltante &gt; 0. Demais filtros e ordenações vêm via BuscaRequest.
+    /// </summary>
+    public async Task<PaginadoResponse<DemandaItemDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["ordemProducaoCodigo"] = "OrdemProducao.Codigo",
+            ["statusOp"] = "OrdemProducao.Status",
+            ["produtoCodigo"] = "Produto.Codigo",
+            ["produtoDescricao"] = "Produto.Descricao",
+            ["produtoUnidade"] = "Produto.Unidade",
+            ["tipoProduto"] = "Produto.Tipo",
+            ["quantidadePlanejada"] = "QuantidadePlanejada",
+            ["quantidadeProduzida"] = "QuantidadeProduzida"
+        };
+
+        var query = _context.OrdensProducaoItens
+            .Include(i => i.Produto)
+            .Include(i => i.OrdemProducao)
+            .Where(i =>
+                i.OrdemProducao.Status != StatusOrdemProducao.Concluida &&
+                i.OrdemProducao.Status != StatusOrdemProducao.Cancelada)
+            .Where(i => i.QuantidadePlanejada - i.QuantidadeProduzida > 0);
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["ordemProducaoCodigo", "produtoCodigo", "produtoDescricao"]);
+
+        return new PaginadoResponse<DemandaItemDTO>
+        {
+            Itens = paginado.Itens.Select(ToDemandaItemDTO).ToList(),
+            Total = paginado.Total,
+            TotalGeral = paginado.TotalGeral,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
+    }
+
+    private static DemandaItemDTO ToDemandaItemDTO(OrdemProducaoItem i)
+    {
+        var faltante = i.QuantidadePlanejada - i.QuantidadeProduzida;
+        var pct = i.QuantidadePlanejada > 0
+            ? Math.Round(i.QuantidadeProduzida / i.QuantidadePlanejada * 100m, 2)
+            : 0m;
+
+        return new DemandaItemDTO
+        {
+            OrdemProducaoId = i.OrdemProducaoId,
+            OrdemProducaoCodigo = i.OrdemProducao.Codigo,
+            StatusOp = i.OrdemProducao.Status,
+            OrdemProducaoItemId = i.Id,
+
+            ProdutoId = i.ProdutoId,
+            ProdutoCodigo = i.Produto.Codigo,
+            ProdutoDescricao = i.Produto.Descricao,
+            ProdutoUnidade = i.Produto.Unidade.ToString(),
+            TipoProduto = i.Produto.Tipo,
+
+            QuantidadePlanejada = i.QuantidadePlanejada,
+            QuantidadeProduzida = i.QuantidadeProduzida,
+            QuantidadeFaltante = faltante,
+            PercentualConcluido = pct
+        };
     }
 }

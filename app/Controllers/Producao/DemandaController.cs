@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Producao;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Engenharia.Enums;
 using Api_ArjSys_Tcc.Services.Producao;
 
@@ -38,5 +39,15 @@ public class DemandaController(DemandaService service) : ControllerBase
         }
 
         return await _service.Listar(lista);
+    }
+
+    /// <summary>
+    /// Busca paginada da demanda com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<DemandaItemDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Engenharia;
 
 namespace Api_ArjSys_Tcc.Controllers.Engenharia;
@@ -15,6 +16,16 @@ public class GrupoProdutoController(GrupoProdutoService service) : ControllerBas
     public async Task<ActionResult<List<GrupoProdutoResponseDTO>>> GetAll()
     {
         return await _service.GetAll();
+    }
+
+    /// <summary>
+    /// Busca paginada de grupos com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    [HttpPost("buscar")]
+    public async Task<ActionResult<PaginadoResponse<GrupoProdutoResponseDTO>>> Buscar([FromBody] BuscaRequest req)
+    {
+        var resposta = await _service.Buscar(req);
+        return Ok(resposta);
     }
 
     [HttpGet("nivel/{nivel}")]

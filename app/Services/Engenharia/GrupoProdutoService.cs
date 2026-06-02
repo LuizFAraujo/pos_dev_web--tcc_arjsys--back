@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Api_ArjSys_Tcc.Data;
+using Api_ArjSys_Tcc.Data.Busca;
+using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Models.Engenharia;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 
@@ -16,6 +18,41 @@ public class GrupoProdutoService(AppDbContext context)
             .ThenBy(g => g.Codigo)
             .Select(g => ToResponseDTO(g))
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Busca paginada de grupos com filtros, ordenação e busca textual server-side.
+    /// </summary>
+    public async Task<PaginadoResponse<GrupoProdutoResponseDTO>> Buscar(BuscaRequest req)
+    {
+        var mapaColunas = new Dictionary<string, string>
+        {
+            ["codigo"] = "Codigo",
+            ["descricao"] = "Descricao",
+            ["nivel"] = "Nivel",
+            ["qtdCaracteres"] = "QtdCaracteres",
+            ["pathDocumentos"] = "PathDocumentos",
+            ["ativo"] = "Ativo",
+            ["criadoEm"] = "CriadoEm",
+            ["modificadoEm"] = "ModificadoEm"
+        };
+
+        var query = _context.GruposProdutos.AsQueryable();
+
+        var paginado = await query.AplicarBuscaAsync(
+            req,
+            mapaColunas,
+            colunasBuscaGlobal: ["codigo", "descricao"]);
+
+        return new PaginadoResponse<GrupoProdutoResponseDTO>
+        {
+            Itens = paginado.Itens.Select(ToResponseDTO).ToList(),
+            Total = paginado.Total,
+            TotalGeral = paginado.TotalGeral,
+            Pagina = paginado.Pagina,
+            Tamanho = paginado.Tamanho,
+            TotalPaginas = paginado.TotalPaginas
+        };
     }
 
     public async Task<List<GrupoProdutoResponseDTO>> GetByNivel(string nivel)
