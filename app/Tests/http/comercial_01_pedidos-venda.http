@@ -5,14 +5,6 @@
 ### PUT retorna 200 OK com o PV completo (não mais 204).
 ### =============================================
 
-### Listar todos
-GET {{host}}/api/comercial/PedidoVenda
-Accept: application/json
-
-### Paginado
-GET {{host}}/api/comercial/PedidoVenda?pagina=1&tamanho=5
-Accept: application/json
-
 ### Buscar por ID (com itens)
 GET {{host}}/api/comercial/PedidoVenda/12
 Accept: application/json

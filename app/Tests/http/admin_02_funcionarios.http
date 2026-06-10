@@ -5,32 +5,6 @@
 ### Seed: FUN-0001 = joao.silva, FUN-0002 = maria.souza, ... FUN-0010 = marcos.rocha
 ### =============================================
 
-### Listar todos
-GET {{host}}/api/admin/Funcionarios
-Accept: application/json
-
-
-### =============================================
-### BUSCA (filtro por texto em nome, codigo, usuario, cargo)
-### =============================================
-
-### Busca exata por código
-GET {{host}}/api/admin/Funcionarios?busca=FUN-0001
-Accept: application/json
-
-### Busca por prefixo
-GET {{host}}/api/admin/Funcionarios?busca=FUN-000
-Accept: application/json
-
-### Busca por usuario
-GET {{host}}/api/admin/Funcionarios?busca=joao.silva
-Accept: application/json
-
-### Busca por trecho do nome
-GET {{host}}/api/admin/Funcionarios?busca=Maria
-Accept: application/json
-
-
 ### =============================================
 ### CRUD
 ### =============================================

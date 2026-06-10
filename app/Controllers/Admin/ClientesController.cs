@@ -13,7 +13,7 @@ public class ClientesController(ClienteService service) : ControllerBase
     private readonly ClienteService _service = service;
 
     /// <summary>
-    /// Lista clientes. Suporta filtro por texto em nome, código, CPF/CNPJ e cidade.
+    /// Lista clientes (cache pra autocomplete cliente-side). Suporta filtro por texto.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<ClienteResponseDTO>>> GetAll([FromQuery] string? busca = null)

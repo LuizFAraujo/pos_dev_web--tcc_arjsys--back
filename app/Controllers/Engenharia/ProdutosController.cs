@@ -14,7 +14,7 @@ public class ProdutosController(ProdutoService service) : ControllerBase
 {
     private readonly ProdutoService _service = service;
 
-    /// <summary>Listar todos os produtos</summary>
+    /// <summary>Listar todos os produtos (cache pra autocomplete cliente-side).</summary>
     [HttpGet]
     public async Task<ActionResult<List<ProdutoResponseDTO>>> GetAll()
     {

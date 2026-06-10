@@ -4,25 +4,7 @@
 ### Visão achatada de itens de OPs ativas (Pendente, Andamento, Pausada).
 ### Cada linha = 1 produto único, somando quantidades de todas as OPs.
 ### Linhas com QuantidadeFaltante <= 0 são excluídas (já produzido).
-### Filtro opcional por tipo (CSV).
+###
+### Listagem via POST /buscar (server-side). Ver clientes/funcionarios/produtos
+### .http pra exemplos de payload BuscaRequest.
 ### =============================================
-
-### Tudo (todos os tipos)
-GET {{host}}/api/producao/Demanda
-Accept: application/json
-
-### A Fabricar
-GET {{host}}/api/producao/Demanda?tipos=Fabricado
-Accept: application/json
-
-### A Comprar
-GET {{host}}/api/producao/Demanda?tipos=Comprado,MateriaPrima
-Accept: application/json
-
-### Vários tipos misturados
-GET {{host}}/api/producao/Demanda?tipos=Fabricado,Comprado
-Accept: application/json
-
-### Tipo inválido é ignorado (não dá 400)
-GET {{host}}/api/producao/Demanda?tipos=Fabricado,Inexistente
-Accept: application/json

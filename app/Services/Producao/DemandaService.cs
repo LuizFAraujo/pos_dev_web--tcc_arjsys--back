@@ -22,57 +22,14 @@ public class DemandaService(AppDbContext context)
     private readonly AppDbContext _context = context;
 
     /// <summary>
-    /// Lista a demanda flat, opcionalmente filtrada por tipos.
-    /// Se tipos for null/vazio, retorna todos os tipos.
-    /// Linhas com QuantidadeFaltante &lt;= 0 são excluídas (já produzido).
+    /// Wrapper para projetar campos calculados (Faltante/Pct) no IQueryable
+    /// e habilitar sort/filter server-side sobre eles via BuscaExtensions.
     /// </summary>
-    public async Task<List<DemandaItemDTO>> Listar(IEnumerable<TipoProduto>? tipos = null)
+    private class DemandaQueryProj
     {
-        var tiposSet = tipos?.ToHashSet();
-
-        var query = _context.OrdensProducaoItens
-            .Include(i => i.Produto)
-            .Include(i => i.OrdemProducao)
-            .Where(i =>
-                i.OrdemProducao.Status != StatusOrdemProducao.Concluida &&
-                i.OrdemProducao.Status != StatusOrdemProducao.Cancelada);
-
-        if (tiposSet != null && tiposSet.Count > 0)
-            query = query.Where(i => tiposSet.Contains(i.Produto.Tipo));
-
-        var itens = await query.ToListAsync();
-
-        return itens
-            .Select(i =>
-            {
-                var faltante = i.QuantidadePlanejada - i.QuantidadeProduzida;
-                var pct = i.QuantidadePlanejada > 0
-                    ? Math.Round(i.QuantidadeProduzida / i.QuantidadePlanejada * 100m, 2)
-                    : 0m;
-
-                return new DemandaItemDTO
-                {
-                    OrdemProducaoId = i.OrdemProducaoId,
-                    OrdemProducaoCodigo = i.OrdemProducao.Codigo,
-                    StatusOp = i.OrdemProducao.Status,
-                    OrdemProducaoItemId = i.Id,
-
-                    ProdutoId = i.ProdutoId,
-                    ProdutoCodigo = i.Produto.Codigo,
-                    ProdutoDescricao = i.Produto.Descricao,
-                    ProdutoUnidade = i.Produto.Unidade.ToString(),
-                    TipoProduto = i.Produto.Tipo,
-
-                    QuantidadePlanejada = i.QuantidadePlanejada,
-                    QuantidadeProduzida = i.QuantidadeProduzida,
-                    QuantidadeFaltante = faltante,
-                    PercentualConcluido = pct
-                };
-            })
-            .Where(d => d.QuantidadeFaltante > 0)
-            .OrderBy(d => d.OrdemProducaoCodigo)
-            .ThenBy(d => d.ProdutoCodigo)
-            .ToList();
+        public OrdemProducaoItem Item { get; set; } = null!;
+        public decimal QuantidadeFaltante { get; set; }
+        public decimal PercentualConcluido { get; set; }
     }
 
     /// <summary>
@@ -84,14 +41,16 @@ public class DemandaService(AppDbContext context)
     {
         var mapaColunas = new Dictionary<string, string>
         {
-            ["ordemProducaoCodigo"] = "OrdemProducao.Codigo",
-            ["statusOp"] = "OrdemProducao.Status",
-            ["produtoCodigo"] = "Produto.Codigo",
-            ["produtoDescricao"] = "Produto.Descricao",
-            ["produtoUnidade"] = "Produto.Unidade",
-            ["tipoProduto"] = "Produto.Tipo",
-            ["quantidadePlanejada"] = "QuantidadePlanejada",
-            ["quantidadeProduzida"] = "QuantidadeProduzida"
+            ["ordemProducaoCodigo"] = "Item.OrdemProducao.Codigo",
+            ["statusOp"] = "Item.OrdemProducao.Status",
+            ["produtoCodigo"] = "Item.Produto.Codigo",
+            ["produtoDescricao"] = "Item.Produto.Descricao",
+            ["produtoUnidade"] = "Item.Produto.Unidade",
+            ["tipoProduto"] = "Item.Produto.Tipo",
+            ["quantidadePlanejada"] = "Item.QuantidadePlanejada",
+            ["quantidadeProduzida"] = "Item.QuantidadeProduzida",
+            ["quantidadeFaltante"] = "QuantidadeFaltante",
+            ["percentualConcluido"] = "PercentualConcluido"
         };
 
         var query = _context.OrdensProducaoItens
@@ -100,7 +59,15 @@ public class DemandaService(AppDbContext context)
             .Where(i =>
                 i.OrdemProducao.Status != StatusOrdemProducao.Concluida &&
                 i.OrdemProducao.Status != StatusOrdemProducao.Cancelada)
-            .Where(i => i.QuantidadePlanejada - i.QuantidadeProduzida > 0);
+            .Where(i => i.QuantidadePlanejada - i.QuantidadeProduzida > 0)
+            .Select(i => new DemandaQueryProj
+            {
+                Item = i,
+                QuantidadeFaltante = i.QuantidadePlanejada - i.QuantidadeProduzida,
+                PercentualConcluido = i.QuantidadePlanejada > 0
+                    ? Math.Round(i.QuantidadeProduzida * 100m / i.QuantidadePlanejada)
+                    : 0m
+            });
 
         var paginado = await query.AplicarBuscaAsync(
             req,
@@ -118,13 +85,9 @@ public class DemandaService(AppDbContext context)
         };
     }
 
-    private static DemandaItemDTO ToDemandaItemDTO(OrdemProducaoItem i)
+    private static DemandaItemDTO ToDemandaItemDTO(DemandaQueryProj p)
     {
-        var faltante = i.QuantidadePlanejada - i.QuantidadeProduzida;
-        var pct = i.QuantidadePlanejada > 0
-            ? Math.Round(i.QuantidadeProduzida / i.QuantidadePlanejada * 100m, 2)
-            : 0m;
-
+        var i = p.Item;
         return new DemandaItemDTO
         {
             OrdemProducaoId = i.OrdemProducaoId,
@@ -140,8 +103,8 @@ public class DemandaService(AppDbContext context)
 
             QuantidadePlanejada = i.QuantidadePlanejada,
             QuantidadeProduzida = i.QuantidadeProduzida,
-            QuantidadeFaltante = faltante,
-            PercentualConcluido = pct
+            QuantidadeFaltante = p.QuantidadeFaltante,
+            PercentualConcluido = Math.Round(p.PercentualConcluido, 2)
         };
     }
 }

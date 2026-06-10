@@ -13,7 +13,7 @@ public class PedidoVendaController(PedidoVendaService service) : ControllerBase
     private readonly PedidoVendaService _service = service;
 
     /// <summary>
-    /// Lista todos os PVs. Suporta paginação opcional.
+    /// Lista todos os PVs (cache pra autocomplete cliente-side). Suporta paginação opcional.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<PedidoVendaResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)

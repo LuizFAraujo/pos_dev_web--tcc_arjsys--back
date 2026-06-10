@@ -12,6 +12,7 @@ public class GrupoProdutoController(GrupoProdutoService service) : ControllerBas
 {
     private readonly GrupoProdutoService _service = service;
 
+    /// <summary>Listar todos os grupos (cache pra autocomplete cliente-side).</summary>
     [HttpGet]
     public async Task<ActionResult<List<GrupoProdutoResponseDTO>>> GetAll()
     {
@@ -26,12 +27,6 @@ public class GrupoProdutoController(GrupoProdutoService service) : ControllerBas
     {
         var resposta = await _service.Buscar(req);
         return Ok(resposta);
-    }
-
-    [HttpGet("nivel/{nivel}")]
-    public async Task<ActionResult<List<GrupoProdutoResponseDTO>>> GetByNivel(string nivel)
-    {
-        return await _service.GetByNivel(nivel);
     }
 
     [HttpGet("{id:int}")]

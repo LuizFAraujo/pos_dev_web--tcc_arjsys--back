@@ -2,10 +2,6 @@
 ### ENGENHARIA - PRODUTOS
 ### =============================================
 
-### Listar todos
-GET {{host}}/api/engenharia/Produtos
-Accept: application/json
-
 ### Buscar por ID
 GET {{host}}/api/engenharia/Produtos/1
 Accept: application/json

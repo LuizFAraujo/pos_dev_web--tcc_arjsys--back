@@ -15,29 +15,6 @@ public class FuncionarioService(AppDbContext context)
     private readonly AppDbContext _context = context;
 
     /// <summary>
-    /// Lista funcionários. Suporta filtro por texto (busca em nome, codigo, usuario, cargo).
-    /// </summary>
-    public async Task<List<FuncionarioResponseDTO>> GetAll(string? busca = null)
-    {
-        var query = _context.Funcionarios.Include(f => f.Pessoa).AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(busca))
-        {
-            var termo = busca.Trim();
-            query = query.Where(f =>
-                f.Pessoa.Nome.Contains(termo) ||
-                f.Pessoa.Codigo.Contains(termo) ||
-                f.Usuario.Contains(termo) ||
-                (f.Cargo != null && f.Cargo.Contains(termo)));
-        }
-
-        return await query
-            .OrderBy(f => f.Pessoa.Nome)
-            .Select(f => ToResponseDTO(f))
-            .ToListAsync();
-    }
-
-    /// <summary>
     /// Busca paginada de funcionários com filtros, ordenação e busca textual server-side.
     /// </summary>
     public async Task<PaginadoResponse<FuncionarioResponseDTO>> Buscar(BuscaRequest req)

@@ -22,14 +22,6 @@
 ###     não-AguardandoNS" (PV agora está em RecebidoNS).
 ### =============================================
 
-### Listar todos (com dados do PV e Produto)
-GET {{host}}/api/comercial/NumeroSerie
-Accept: application/json
-
-### Listar paginado
-GET {{host}}/api/comercial/NumeroSerie?pagina=1&tamanho=5
-Accept: application/json
-
 ### Buscar por ID
 GET {{host}}/api/comercial/NumeroSerie/1
 Accept: application/json

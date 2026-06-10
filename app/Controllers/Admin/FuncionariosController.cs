@@ -13,15 +13,6 @@ public class FuncionariosController(FuncionarioService service) : ControllerBase
     private readonly FuncionarioService _service = service;
 
     /// <summary>
-    /// Lista funcionários. Suporta filtro por texto em nome, código, usuário e cargo.
-    /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<List<FuncionarioResponseDTO>>> GetAll([FromQuery] string? busca = null)
-    {
-        return await _service.GetAll(busca);
-    }
-
-    /// <summary>
     /// Busca paginada de funcionários com filtros, ordenação e busca textual server-side.
     /// </summary>
     [HttpPost("buscar")]

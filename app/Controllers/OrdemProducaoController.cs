@@ -13,15 +13,6 @@ public class OrdemProducaoController(OrdemProducaoService service) : ControllerB
     private readonly OrdemProducaoService _service = service;
 
     /// <summary>
-    /// Lista todas as OPs.
-    /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<List<OrdemProducaoResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)
-    {
-        return await _service.GetAll(pagina, tamanho);
-    }
-
-    /// <summary>
     /// Busca paginada de OPs com filtros, ordenação e busca textual server-side.
     /// </summary>
     [HttpPost("buscar")]

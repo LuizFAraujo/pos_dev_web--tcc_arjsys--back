@@ -30,26 +30,15 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
     // LISTAGEM
     // ========================================================================
 
-    public async Task<List<OrdemProducaoResponseDTO>> GetAll(int pagina = 0, int tamanho = 0)
+    /// <summary>
+    /// Projeção interna para sort/filter server-side sobre PercentualMedio.
+    /// Buscar em 2 fases: filtra/ordena/pagina aqui (só Id + PercentualMedio),
+    /// depois re-busca as entidades por Id com Includes para o DTO final.
+    /// </summary>
+    private class OrdemProducaoQueryProj
     {
-        var query = _context.OrdensProducao
-            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
-            .Include(o => o.Produto)
-            .Include(o => o.OrdemPai)
-            .OrderByDescending(o => o.CriadoEm);
-
-        List<OrdemProducao> lista;
-
-        if (pagina > 0 && tamanho > 0)
-            lista = await query.Skip((pagina - 1) * tamanho).Take(tamanho).ToListAsync();
-        else
-            lista = await query.ToListAsync();
-
-        var resultado = new List<OrdemProducaoResponseDTO>();
-        foreach (var op in lista)
-            resultado.Add(await ToResponseDTO(op));
-
-        return resultado;
+        public OrdemProducao Op { get; set; } = null!;
+        public decimal PercentualMedio { get; set; }
     }
 
     /// <summary>
@@ -59,47 +48,75 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
     {
         var mapaColunas = new Dictionary<string, string>
         {
-            ["codigo"] = "Codigo",
-            ["tipo"] = "Tipo",
-            ["status"] = "Status",
-            ["quantidade"] = "Quantidade",
-            ["observacao"] = "Observacao",
-            ["pedidoVendaId"] = "PedidoVendaId",
-            ["pedidoVendaCodigo"] = "PedidoVenda.Codigo",
-            ["clienteNome"] = "PedidoVenda.Cliente.Pessoa.Nome",
-            ["clienteCodigo"] = "PedidoVenda.Cliente.Pessoa.Codigo",
-            ["produtoId"] = "ProdutoId",
-            ["produtoCodigo"] = "Produto.Codigo",
-            ["produtoDescricao"] = "Produto.Descricao",
-            ["ordemPaiId"] = "OrdemPaiId",
-            ["ordemPaiCodigo"] = "OrdemPai.Codigo",
-            ["criadoEm"] = "CriadoEm",
-            ["modificadoEm"] = "ModificadoEm"
+            ["codigo"] = "Op.Codigo",
+            ["tipo"] = "Op.Tipo",
+            ["status"] = "Op.Status",
+            ["quantidade"] = "Op.Quantidade",
+            ["observacao"] = "Op.Observacao",
+            ["pedidoVendaId"] = "Op.PedidoVendaId",
+            ["pedidoVendaCodigo"] = "Op.PedidoVenda.Codigo",
+            ["clienteNome"] = "Op.PedidoVenda.Cliente.Pessoa.Nome",
+            ["clienteCodigo"] = "Op.PedidoVenda.Cliente.Pessoa.Codigo",
+            ["produtoId"] = "Op.ProdutoId",
+            ["produtoCodigo"] = "Op.Produto.Codigo",
+            ["produtoDescricao"] = "Op.Produto.Descricao",
+            ["ordemPaiId"] = "Op.OrdemPaiId",
+            ["ordemPaiCodigo"] = "Op.OrdemPai.Codigo",
+            ["percentual"] = "PercentualMedio",
+            ["criadoEm"] = "Op.CriadoEm",
+            ["modificadoEm"] = "Op.ModificadoEm"
         };
 
-        var query = _context.OrdensProducao
-            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
-            .Include(o => o.Produto)
-            .Include(o => o.OrdemPai)
-            .AsQueryable();
+        // Fase 1: query projetada calcula PercentualMedio em SQL e aplica filtros/sort/paginação.
+        // OrdemProducao não tem navegação Itens — usa subquery direta em OrdensProducaoItens.
+        // Math.Round é aplicado depois, no ToResponseDTO, pra não complicar a tradução pro SQLite.
+        var queryProj = _context.OrdensProducao
+            .Select(o => new OrdemProducaoQueryProj
+            {
+                Op = o,
+                PercentualMedio =
+                    (_context.OrdensProducaoItens
+                        .Where(i => i.OrdemProducaoId == o.Id)
+                        .Sum(i => (decimal?)i.QuantidadePlanejada) ?? 0m) > 0m
+                    ? Math.Round(((_context.OrdensProducaoItens
+                            .Where(i => i.OrdemProducaoId == o.Id)
+                            .Sum(i => (decimal?)i.QuantidadeProduzida) ?? 0m) * 100m)
+                        / (_context.OrdensProducaoItens
+                            .Where(i => i.OrdemProducaoId == o.Id)
+                            .Sum(i => (decimal?)i.QuantidadePlanejada) ?? 1m))
+                    : 0m
+            });
 
-        var paginado = await query.AplicarBuscaAsync(
+        var paginadoProj = await queryProj.AplicarBuscaAsync(
             req,
             mapaColunas,
             colunasBuscaGlobal: ["codigo", "produtoCodigo", "produtoDescricao", "clienteNome", "pedidoVendaCodigo"]);
 
+        // Fase 2: re-busca as entidades já paginadas com Includes pra montar o DTO
+        var ids = paginadoProj.Itens.Select(p => p.Op.Id).ToList();
+        var ops = await _context.OrdensProducao
+            .Include(o => o.PedidoVenda).ThenInclude(p => p!.Cliente).ThenInclude(c => c.Pessoa)
+            .Include(o => o.Produto)
+            .Include(o => o.OrdemPai)
+            .Where(o => ids.Contains(o.Id))
+            .ToListAsync();
+
+        // Preserva a ordem do AplicarBuscaAsync
+        var opsPorId = ops.ToDictionary(o => o.Id);
+
         var resultado = new List<OrdemProducaoResponseDTO>();
-        foreach (var op in paginado.Itens)
-            resultado.Add(await ToResponseDTO(op));
+        foreach (var id in ids)
+            if (opsPorId.TryGetValue(id, out var op))
+                resultado.Add(await ToResponseDTO(op));
 
         return new PaginadoResponse<OrdemProducaoResponseDTO>
         {
             Itens = resultado,
-            Total = paginado.Total,
-            TotalGeral = paginado.TotalGeral,
-            Pagina = paginado.Pagina,
-            Tamanho = paginado.Tamanho,
-            TotalPaginas = paginado.TotalPaginas
+            Total = paginadoProj.Total,
+            TotalGeral = paginadoProj.TotalGeral,
+            Pagina = paginadoProj.Pagina,
+            Tamanho = paginadoProj.Tamanho,
+            TotalPaginas = paginadoProj.TotalPaginas
         };
     }
 
@@ -881,6 +898,12 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
             }
         }
 
+        decimal planejadaOp = itens.Sum(i => i.QuantidadePlanejada);
+        decimal produzidaOp = itens.Sum(i => i.QuantidadeProduzida);
+        decimal percentualMedio = planejadaOp > 0
+            ? Math.Round(produzidaOp / planejadaOp * 100m, 2)
+            : 0m;
+
         return new OrdemProducaoResponseDTO
         {
             Id = op.Id,
@@ -900,6 +923,7 @@ public class OrdemProducaoService(AppDbContext context, NotificacaoService notif
             Observacoes = op.Observacoes,
             Itens = itens.Select(ToItemResponseDTO).ToList(),
             Filhas = filhas,
+            PercentualMedio = percentualMedio,
             CriadoEm = op.CriadoEm,
             ModificadoEm = op.ModificadoEm
         };

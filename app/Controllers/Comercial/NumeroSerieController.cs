@@ -13,7 +13,7 @@ public class NumeroSerieController(NumeroSerieService service) : ControllerBase
     private readonly NumeroSerieService _service = service;
 
     /// <summary>
-    /// Lista todos os NS com dados do PV vinculado. Suporta paginação.
+    /// Lista todos os NS (cache pra cálculo de próximo sequencial no form). Suporta paginação.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<NumeroSerieResponseDTO>>> GetAll(int pagina = 0, int tamanho = 0)

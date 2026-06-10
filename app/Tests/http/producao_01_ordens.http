@@ -24,10 +24,6 @@
 ###   qualquer produto Fabricado com BOM.
 ### =============================================
 
-### Listar todas
-GET {{host}}/api/producao/OrdemProducao
-Accept: application/json
-
 ### OPs de um PV
 GET {{host}}/api/producao/OrdemProducao/pedido/12
 Accept: application/json

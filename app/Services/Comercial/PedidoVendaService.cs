@@ -82,9 +82,13 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
             ["clienteId"] = "ClienteId",
             ["clienteNome"] = "Cliente.Pessoa.Nome",
             ["clienteCodigo"] = "Cliente.Pessoa.Codigo",
+            ["clienteCpfCnpj"] = "Cliente.Pessoa.CpfCnpj",
+            ["clienteCidade"] = "Cliente.Pessoa.Cidade",
+            ["clienteEstado"] = "Cliente.Pessoa.Estado",
             ["produtoBomId"] = "ProdutoBomId",
             ["produtoBomCodigo"] = "ProdutoBom.Codigo",
             ["produtoBomDescricao"] = "ProdutoBom.Descricao",
+            ["situacao"] = "ProdutoBomId",
             ["criadoEm"] = "CriadoEm",
             ["modificadoEm"] = "ModificadoEm"
         };
@@ -94,6 +98,37 @@ public class PedidoVendaService(AppDbContext context, NotificacaoService notific
                 .ThenInclude(c => c.Pessoa)
             .Include(p => p.ProdutoBom)
             .AsQueryable();
+
+        // Filtro especial: coluna "situacao" é derivada (Liberado = tem ProdutoBomId).
+        // Intercepta o filtro checklist antes do AplicarBuscaAsync e converte pra
+        // condição em ProdutoBomId. Tira o filtro do req pra não ser reaplicado.
+        if (req.Filtros != null && req.Filtros.Count > 0)
+        {
+            var filtroSituacao = req.Filtros.FirstOrDefault(f => f.Coluna == "situacao");
+            if (filtroSituacao != null)
+            {
+                var valoresSelecionados = filtroSituacao.Condicoes
+                    .Where(c => c.Valor.HasValue && c.Valor.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    .SelectMany(c => c.Valor!.Value.EnumerateArray()
+                        .Where(j => j.ValueKind == System.Text.Json.JsonValueKind.String)
+                        .Select(j => j.GetString()))
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .Select(s => s!)
+                    .ToHashSet();
+
+                if (valoresSelecionados.Count > 0)
+                {
+                    var quer = valoresSelecionados.Contains("Liberado");
+                    var quersem = valoresSelecionados.Contains("Sem projeto");
+                    if (quer && !quersem)
+                        query = query.Where(p => p.ProdutoBomId != null);
+                    else if (quersem && !quer)
+                        query = query.Where(p => p.ProdutoBomId == null);
+                }
+
+                req.Filtros = req.Filtros.Where(f => f.Coluna != "situacao").ToList();
+            }
+        }
 
         var paginado = await query.AplicarBuscaAsync(
             req,

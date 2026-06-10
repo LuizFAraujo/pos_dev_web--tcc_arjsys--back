@@ -2,22 +2,6 @@
 ### ENGENHARIA - GRUPOS DE PRODUTO
 ### =============================================
 
-### Listar todos
-GET {{host}}/api/engenharia/GrupoProduto
-Accept: application/json
-
-### Filtrar por nível Coluna1
-GET {{host}}/api/engenharia/GrupoProduto/nivel/Coluna1
-Accept: application/json
-
-### Filtrar por nível Coluna2
-GET {{host}}/api/engenharia/GrupoProduto/nivel/Coluna2
-Accept: application/json
-
-### Filtrar por nível Coluna3
-GET {{host}}/api/engenharia/GrupoProduto/nivel/Coluna3
-Accept: application/json
-
 ### Buscar por ID
 GET {{host}}/api/engenharia/GrupoProduto/1
 Accept: application/json

@@ -55,15 +55,6 @@ public class GrupoProdutoService(AppDbContext context)
         };
     }
 
-    public async Task<List<GrupoProdutoResponseDTO>> GetByNivel(string nivel)
-    {
-        return await _context.GruposProdutos
-            .Where(g => g.Nivel.ToString() == nivel)
-            .OrderBy(g => g.Codigo)
-            .Select(g => ToResponseDTO(g))
-            .ToListAsync();
-    }
-
     public async Task<GrupoProdutoResponseDTO?> GetById(int id)
     {
         var grupo = await _context.GruposProdutos.FindAsync(id);

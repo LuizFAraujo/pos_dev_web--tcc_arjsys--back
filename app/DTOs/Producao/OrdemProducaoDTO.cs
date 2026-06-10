@@ -76,6 +76,12 @@ public class OrdemProducaoResponseDTO
     public List<OrdemProducaoItemResponseDTO> Itens { get; set; } = [];
     public List<OrdemProducaoFilhaResumoDTO> Filhas { get; set; } = [];
 
+    /// <summary>
+    /// Percentual médio de conclusão da OP — média dos itens.
+    /// Calculado server-side pra permitir sort/filter na grid.
+    /// </summary>
+    public decimal PercentualMedio { get; set; }
+
     public DateTime CriadoEm { get; set; }
     public DateTime? ModificadoEm { get; set; }
 }

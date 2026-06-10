@@ -5,36 +5,6 @@
 ### Não aceito no payload de criação (ignorado silenciosamente se vier).
 ### =============================================
 
-### Listar todos
-GET {{host}}/api/admin/Clientes
-Accept: application/json
-
-
-### =============================================
-### BUSCA (filtro por texto em nome, codigo, cpfCnpj, cidade)
-### =============================================
-
-### Busca exata por código
-GET {{host}}/api/admin/Clientes?busca=CLI-0001
-Accept: application/json
-
-### Busca por prefixo (retorna múltiplos)
-GET {{host}}/api/admin/Clientes?busca=CLI-00
-Accept: application/json
-
-### Busca por cidade
-GET {{host}}/api/admin/Clientes?busca=Maringa
-Accept: application/json
-
-### Busca por trecho do nome
-GET {{host}}/api/admin/Clientes?busca=Agro
-Accept: application/json
-
-### Busca por CPF/CNPJ
-GET {{host}}/api/admin/Clientes?busca=11.222.333
-Accept: application/json
-
-
 ### =============================================
 ### CRUD
 ### =============================================
@@ -97,9 +67,6 @@ DELETE {{host}}/api/admin/Clientes/16
 
 ### PV deve incluir clienteCodigo
 GET {{host}}/api/comercial/PedidoVenda/7
-
-### NS deve incluir clienteCodigo
-GET {{host}}/api/comercial/NumeroSerie
 
 ### OP deve incluir clienteCodigo (null se é de estoque)
 GET {{host}}/api/producao/OrdemProducao/1
