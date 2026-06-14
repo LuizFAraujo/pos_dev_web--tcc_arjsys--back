@@ -192,6 +192,38 @@ public class ProdutoService(AppDbContext context)
     }
 
 
+    /// <summary>
+    /// Resolve o caminho completo de um documento do produto (ex: {codigo}.pdf).
+    /// Reutiliza ResolverPathProduto para achar a pasta e monta o nome do arquivo
+    /// pela extensão informada (padrão "pdf"). Aceitar a extensão deixa o método
+    /// pronto para outros tipos de documento no futuro (jpg, sldprt, etc).
+    /// Retorna (caminho, null) se o arquivo existe, (null, erro) caso contrário.
+    /// </summary>
+    public async Task<(string? Caminho, string? Erro)> ResolverCaminhoDocumento(int id, string extensao = "pdf")
+    {
+        var produto = await _context.Produtos.FindAsync(id);
+
+        if (produto == null)
+            return (null, "Produto não encontrado");
+
+        if (!produto.TemDocumento)
+            return (null, "Este produto não possui documento cadastrado");
+
+        var (path, erroPath) = await ResolverPathProduto(produto.Codigo);
+
+        if (erroPath != null || string.IsNullOrEmpty(path))
+            return (null, erroPath ?? "Não foi possível resolver a pasta do produto");
+
+        var ext = extensao.TrimStart('.');
+        var arquivo = Path.Combine(path, $"{produto.Codigo}.{ext}");
+
+        if (!File.Exists(arquivo))
+            return (null, $"Documento {produto.Codigo}.{ext} não encontrado");
+
+        return (arquivo, null);
+    }
+
+
     // =============================================
     // ABRIR PASTA
     // =============================================

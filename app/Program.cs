@@ -12,6 +12,7 @@ using Api_ArjSys_Tcc.Services.Engenharia;
 using Api_ArjSys_Tcc.Services.Admin;
 using Api_ArjSys_Tcc.Services.Comercial;
 using Api_ArjSys_Tcc.Services.Producao;
+using Api_ArjSys_Tcc.Services.Shared.Thumbnail;
 
 
 
@@ -76,6 +77,10 @@ builder.Services.AddScoped<OrdemProducaoService>();
 builder.Services.AddScoped<DemandaService>();
 
 
+// Shared (ferramentas genéricas, servem qualquer setor)
+builder.Services.AddScoped<ThumbnailService>();
+
+
 
 
 var app = builder.Build();
@@ -87,8 +92,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseSwaggerConfig();
 app.UseScalarConfig();
+
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();

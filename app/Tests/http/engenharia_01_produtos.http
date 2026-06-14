@@ -104,6 +104,79 @@ Accept: application/json
 
 
 ### =============================================
+### MINIATURA DE PDF (THUMBNAIL)
+### =============================================
+
+### Miniatura largura padrão (320) — produto com PDF (ajustar ID)
+GET {{host}}/api/engenharia/Produtos/75/thumbnail
+Accept: image/webp
+
+### Miniatura largura específica
+GET {{host}}/api/engenharia/Produtos/75/thumbnail?w=640
+Accept: image/webp
+
+### Miniatura — clamp (w abaixo do mínimo vira 80)
+GET {{host}}/api/engenharia/Produtos/75/thumbnail?w=10
+Accept: image/webp
+
+### Miniatura — clamp (w acima do máximo vira 800)
+GET {{host}}/api/engenharia/Produtos/75/thumbnail?w=9999
+Accept: image/webp
+
+### Miniatura — produto sem documento → 404
+GET {{host}}/api/engenharia/Produtos/2/thumbnail
+Accept: image/webp
+
+### Miniatura — produto inexistente → 404
+GET {{host}}/api/engenharia/Produtos/999/thumbnail
+Accept: image/webp
+
+
+
+
+### =============================================
+### DOCUMENTO ORIGINAL (streaming para o navegador)
+### =============================================
+
+### Documento PDF original (abre no navegador, ajustar ID)
+GET {{host}}/api/engenharia/Produtos/75/documento?ext=pdf
+Accept: application/pdf
+
+### Documento — produto sem documento → 404
+GET {{host}}/api/engenharia/Produtos/2/documento?ext=pdf
+Accept: application/pdf
+
+
+
+
+### =============================================
+### MINIATURA - LIMPEZA DE CACHE (Sistema - Miniaturas)
+### =============================================
+
+### Limpar TODAS as miniaturas do cache
+DELETE {{host}}/api/Miniaturas/cache
+Accept: application/json
+
+### Limpar miniaturas geradas há mais de 30 dias
+DELETE {{host}}/api/Miniaturas/cache?dias=30
+Accept: application/json
+
+### Limpar miniaturas geradas há mais de 1 ano
+DELETE {{host}}/api/Miniaturas/cache?dias=365
+Accept: application/json
+
+### Limpar miniaturas geradas antes de uma data
+DELETE {{host}}/api/Miniaturas/cache?ate=2026-01-01
+Accept: application/json
+
+### Erro: dias e ate juntos → 400
+DELETE {{host}}/api/Miniaturas/cache?dias=30&ate=2026-01-01
+Accept: application/json
+
+
+
+
+### =============================================
 ### VARREDURA DE DOCUMENTOS
 ### =============================================
 

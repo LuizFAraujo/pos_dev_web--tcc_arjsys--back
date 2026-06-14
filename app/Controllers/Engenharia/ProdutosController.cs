@@ -1,8 +1,10 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Api_ArjSys_Tcc.DTOs.Engenharia;
 using Api_ArjSys_Tcc.DTOs.Shared;
 using Api_ArjSys_Tcc.Services.Engenharia;
+using Api_ArjSys_Tcc.Services.Shared.Thumbnail;
 using Api_ArjSys_Tcc.Helpers;
 
 namespace Api_ArjSys_Tcc.Controllers.Engenharia;
@@ -10,9 +12,14 @@ namespace Api_ArjSys_Tcc.Controllers.Engenharia;
 [ApiController]
 [Route("api/engenharia/[controller]")]
 [Tags("Engenharia - Produtos")]
-public class ProdutosController(ProdutoService service) : ControllerBase
+public class ProdutosController(ProdutoService service, ThumbnailService thumbnailService) : ControllerBase
 {
     private readonly ProdutoService _service = service;
+    private readonly ThumbnailService _thumbnailService = thumbnailService;
+
+    // Descobre o content-type pela extensão do arquivo (pdf, jpg, png, etc).
+    // Faz parte do ASP.NET, sem pacote extra. Estático: criar uma vez basta.
+    private static readonly FileExtensionContentTypeProvider _contentTypeProvider = new();
 
     /// <summary>Listar todos os produtos (cache pra autocomplete cliente-side).</summary>
     [HttpGet]
@@ -144,6 +151,61 @@ public class ProdutosController(ProdutoService service) : ControllerBase
             return BadRequest(new { erro });
 
         return Ok(resultado);
+    }
+
+
+    /// <summary>
+    /// Retorna a miniatura (webp) da primeira página do PDF do produto.
+    /// Renderiza on-demand e cacheia em disco. GET puro e idempotente, sem efeitos colaterais.
+    /// Suporta ETag e If-None-Match (304).
+    /// </summary>
+    [HttpGet("{id:int}/thumbnail")]
+    public async Task<IActionResult> Thumbnail(int id, [FromQuery] int w = 320)
+    {
+        w = Math.Clamp(w, 80, 800);
+
+        // Parte específica de produto: resolve o caminho do PDF do produto.
+        var (caminho, erro) = await _service.ResolverCaminhoDocumento(id, "pdf");
+
+        if (erro != null)
+            return NotFound(new { erro });
+
+        // Parte genérica: gera (ou recupera do cache) a miniatura webp.
+        var (filePath, etag, erroThumb) = _thumbnailService.Gerar(caminho!, w);
+
+        if (erroThumb != null)
+            return UnprocessableEntity(new { erro = erroThumb });
+
+        if (Request.Headers.IfNoneMatch == etag)
+            return StatusCode((int)HttpStatusCode.NotModified);
+
+        Response.Headers.ETag = etag;
+        Response.Headers.CacheControl = "private, max-age=86400";
+
+        return PhysicalFile(filePath!, "image/webp");
+    }
+
+
+    /// <summary>
+    /// Entrega o documento ORIGINAL do produto para exibição e interação no
+    /// navegador (por exemplo, abrir o PDF embutido no visualizador nativo).
+    /// GET puro e idempotente, sem efeitos colaterais (diferente do
+    /// abrir-documento, que abre o arquivo no servidor). Envia inline e com
+    /// suporte a range, necessário para o visualizador de PDF do navegador
+    /// navegar entre páginas e dar zoom.
+    /// </summary>
+    [HttpGet("{id:int}/documento")]
+    public async Task<IActionResult> Documento(int id, [FromQuery] string ext = "pdf")
+    {
+        var (caminho, erro) = await _service.ResolverCaminhoDocumento(id, ext);
+
+        if (erro != null)
+            return NotFound(new { erro });
+
+        if (!_contentTypeProvider.TryGetContentType(caminho!, out var contentType))
+            contentType = "application/octet-stream";
+
+        return PhysicalFile(caminho!, contentType, enableRangeProcessing: true);
     }
 
 

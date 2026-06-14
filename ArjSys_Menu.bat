@@ -64,13 +64,14 @@ echo.
 echo ------------------------------------------------------------
 echo.
 echo   1 - Rodar API ^(%DOTNET% run --project %PROJETO_API%^)
-echo   2 - Rodar SeedRunner ^(popular banco com SQLs^)
-echo   3 - Build ^(%DOTNET% build da solucao^)
-echo   4 - Resetar banco ^(apaga .db + aplica migrations^)
-echo   5 - Adicionar migration ^(pede nome^)
-echo   6 - Aplicar migrations pendentes
-echo   7 - Publish release self-contained
-echo   8 - Restaurar projeto do Git ^(restore + migrations + run^)
+echo   2 - Rodar API com watch ^(%DOTNET% watch run --project %PROJETO_API%^)
+echo   3 - Rodar SeedRunner ^(popular banco com SQLs^)
+echo   4 - Build ^(%DOTNET% build da solucao^)
+echo   5 - Resetar banco ^(apaga .db + aplica migrations^)
+echo   6 - Adicionar migration ^(pede nome^)
+echo   7 - Aplicar migrations pendentes
+echo   8 - Publish release self-contained
+echo   9 - Restaurar projeto do Git ^(restore + migrations + run^)
 echo.
 echo   0 - Sair
 echo.
@@ -86,13 +87,14 @@ REM ---- Roteamento para o rotulo correto --------------------------------------
 REM  goto LABEL  salta pra secao correspondente.
 REM  Se o usuario digitar algo invalido, cai em :OPCAO_INVALIDA.
 if "%OPCAO%"=="1" goto ACAO_API
-if "%OPCAO%"=="2" goto ACAO_SEED
-if "%OPCAO%"=="3" goto ACAO_BUILD
-if "%OPCAO%"=="4" goto ACAO_RESET_DB
-if "%OPCAO%"=="5" goto ACAO_MIGRATION_ADD
-if "%OPCAO%"=="6" goto ACAO_MIGRATION_UPDATE
-if "%OPCAO%"=="7" goto ACAO_PUBLISH
-if "%OPCAO%"=="8" goto ACAO_RESTAURAR
+if "%OPCAO%"=="2" goto ACAO_WATCH
+if "%OPCAO%"=="3" goto ACAO_SEED
+if "%OPCAO%"=="4" goto ACAO_BUILD
+if "%OPCAO%"=="5" goto ACAO_RESET_DB
+if "%OPCAO%"=="6" goto ACAO_MIGRATION_ADD
+if "%OPCAO%"=="7" goto ACAO_MIGRATION_UPDATE
+if "%OPCAO%"=="8" goto ACAO_PUBLISH
+if "%OPCAO%"=="9" goto ACAO_RESTAURAR
 if "%OPCAO%"=="0" goto SAIR
 
 goto OPCAO_INVALIDA
@@ -116,7 +118,26 @@ goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 2 - Rodar SeedRunner
+REM  ACAO 2 - Rodar API com watch (hot reload)
+REM ----------------------------------------------------------------------------
+REM  dotnet watch run       : igual ao run, mas fica observando os arquivos.
+REM                           Ao salvar uma alteracao, recompila e reinicia
+REM                           (ou aplica hot reload) automaticamente.
+REM  --project %PROJETO_API%: aponta pra pasta do .csproj da API
+REM  Kestrel escuta em http://localhost:7000 (vindo do appsettings.json)
+REM  Ctrl+C encerra o watch e volta pro menu (se VOLTAR_AO_MENU=true)
+REM ============================================================================
+:ACAO_WATCH
+cls
+echo.
+echo [ACAO 2] Rodando API com watch em %PROJETO_API%...
+echo ------------------------------------------------------------
+%DOTNET% watch run --project %PROJETO_API%
+goto FIM_ACAO
+
+
+REM ============================================================================
+REM  ACAO 3 - Rodar SeedRunner
 REM ----------------------------------------------------------------------------
 REM  dotnet run             : compila/executa o projeto SeedRunner
 REM  --project %PROJETO_SEED%: aponta pra pasta do SeedRunner.csproj
@@ -126,14 +147,14 @@ REM ============================================================================
 :ACAO_SEED
 cls
 echo.
-echo [ACAO 2] Rodando SeedRunner...
+echo [ACAO 3] Rodando SeedRunner...
 echo ------------------------------------------------------------
 %DOTNET% run --project %PROJETO_SEED%
 goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 3 - Build da solucao
+REM  ACAO 4 - Build da solucao
 REM ----------------------------------------------------------------------------
 REM  dotnet build  : compila todos os projetos da solucao (.slnx).
 REM                  Verifica erros de compilacao sem rodar nada.
@@ -142,14 +163,14 @@ REM ============================================================================
 :ACAO_BUILD
 cls
 echo.
-echo [ACAO 3] Fazendo build da solucao...
+echo [ACAO 4] Fazendo build da solucao...
 echo ------------------------------------------------------------
 %DOTNET% build
 goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 4 - Resetar banco de dados
+REM  ACAO 5 - Resetar banco de dados
 REM ----------------------------------------------------------------------------
 REM  ATENCAO: acao destrutiva. Apaga o .db completamente e recria do zero
 REM  aplicando todas as migrations. Dados sao perdidos.
@@ -166,7 +187,7 @@ REM ============================================================================
 :ACAO_RESET_DB
 cls
 echo.
-echo [ACAO 4] RESETAR BANCO DE DADOS
+echo [ACAO 5] RESETAR BANCO DE DADOS
 echo ------------------------------------------------------------
 echo ATENCAO: esta operacao APAGA o banco %BANCO% completamente.
 echo Todos os dados serao perdidos.
@@ -200,7 +221,7 @@ goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 5 - Adicionar nova migration
+REM  ACAO 6 - Adicionar nova migration
 REM ----------------------------------------------------------------------------
 REM  dotnet ef migrations add <nome> : compara o DbContext atual com o ultimo
 REM  snapshot e gera os arquivos da migration nova em app/Migrations/.
@@ -212,7 +233,7 @@ REM ============================================================================
 :ACAO_MIGRATION_ADD
 cls
 echo.
-echo [ACAO 5] ADICIONAR MIGRATION
+echo [ACAO 6] ADICIONAR MIGRATION
 echo ------------------------------------------------------------
 set "NOME_MIG="
 set /p "NOME_MIG=Nome da migration (ex: AddCampoXYZ): "
@@ -232,25 +253,25 @@ goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 6 - Aplicar migrations pendentes
+REM  ACAO 7 - Aplicar migrations pendentes
 REM ----------------------------------------------------------------------------
 REM  dotnet ef database update : aplica todas as migrations que ainda nao
 REM  estao no banco. Nao apaga dados, so roda as que faltam.
 REM
 REM  Util depois de fazer git pull e alguem ter adicionado migrations novas,
-REM  ou depois de rodar a acao 5 pra criar a migration.
+REM  ou depois de rodar a acao 6 pra criar a migration.
 REM ============================================================================
 :ACAO_MIGRATION_UPDATE
 cls
 echo.
-echo [ACAO 6] Aplicando migrations pendentes...
+echo [ACAO 7] Aplicando migrations pendentes...
 echo ------------------------------------------------------------
 %DOTNET% ef database update --project %PROJETO_API%
 goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 7 - Publish release self-contained
+REM  ACAO 8 - Publish release self-contained
 REM ----------------------------------------------------------------------------
 REM  dotnet publish                 : compila para distribuicao
 REM  -c Release                     : modo release (otimizado, sem debug)
@@ -264,7 +285,7 @@ REM ============================================================================
 :ACAO_PUBLISH
 cls
 echo.
-echo [ACAO 7] Publicando API em modo Release self-contained...
+echo [ACAO 8] Publicando API em modo Release self-contained...
 echo Destino: %PUBLISH_DIR%
 echo ------------------------------------------------------------
 %DOTNET% publish %PROJETO_API% -c Release -o %PUBLISH_DIR% --self-contained true
@@ -272,7 +293,7 @@ goto FIM_ACAO
 
 
 REM ============================================================================
-REM  ACAO 8 - Restaurar projeto do Git
+REM  ACAO 9 - Restaurar projeto do Git
 REM ----------------------------------------------------------------------------
 REM  Sequencia completa para quando o projeto foi baixado/clonado do GitHub
 REM  em uma maquina nova ou diferente. Executa na ordem:
@@ -286,7 +307,7 @@ REM ============================================================================
 :ACAO_RESTAURAR
 cls
 echo.
-echo [ACAO 8] RESTAURAR PROJETO DO GIT
+echo [ACAO 9] RESTAURAR PROJETO DO GIT
 echo ============================================================
 echo.
 echo  Etapa 1/3 - Restaurando pacotes NuGet...
